@@ -15,25 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.linqs.psl.application.inference.distributed;
+package org.linqs.psl.application.inference.distributed.message;
 
 import java.nio.ByteBuffer;
 
 /**
- * A message indicating that the worker should initilize.
+ * A simple response indicating success or failure.
  */
-public class InitializeTask extends Message {
+public class Response extends Message {
+	boolean success;
+
+	public Response() {
+		this(false);
+	}
+
+	public Response(boolean success) {
+		this.success = success;
+	}
+
 	@Override
 	protected byte[] serializePayload() {
-		return new byte[0];
+		return new byte[]{(byte)(success ? 1 : 0)};
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
+		success = payload.get() == 1;
 	}
 
 	@Override
 	public String toString() {
-		return "InitializeTask";
+		return "Response: " + success;
 	}
 }

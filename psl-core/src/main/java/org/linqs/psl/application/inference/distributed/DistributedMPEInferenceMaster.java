@@ -17,6 +17,10 @@
  */
 package org.linqs.psl.application.inference.distributed;
 
+import org.linqs.psl.application.inference.distributed.message.Close;
+import org.linqs.psl.application.inference.distributed.message.Initialize;
+import org.linqs.psl.application.inference.distributed.message.Message;
+
 // TODO(eriq): Clean imports
 import org.linqs.psl.application.groundrulestore.GroundRuleStore;
 import org.linqs.psl.application.ModelApplication;
@@ -93,7 +97,6 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 	public FullInferenceResult mpeInference() {
 		log.debug("Initializing Workers");
 		WorkerPool workers = initWorkers();
-
 		log.debug("Workers initialized");
 
 		/* TODO(eriq)
@@ -117,14 +120,35 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		return new MemoryFullInferenceResult(incompatibility, infeasibility, count, size);
 		*/
 
+		log.debug("Closing Workers");
+		closeWorkers(workers);
+		log.debug("Workers closed");
+
 		return null;
 	}
 
 	private WorkerPool initWorkers() {
 		WorkerPool workers = new WorkerPool(workerAddresses);
-		workers.blockingSubmit(new InitializeTask());
+		List<Message> responses = workers.blockingSubmit(new Initialize());
+
+		// TEST
+		for (Message response : responses) {
+			System.out.println(response);
+		}
 
 		return workers;
+	}
+
+	private void closeWorkers(WorkerPool workers) {
+		List<Message> responses = workers.blockingSubmit(new Close());
+
+		// TEST
+		for (Message response : responses) {
+			System.out.println(response);
+		}
+
+		workers.close();
+		workers = null;
 	}
 
 	@Override

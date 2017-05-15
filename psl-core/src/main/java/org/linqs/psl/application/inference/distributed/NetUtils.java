@@ -17,6 +17,8 @@
  */
 package org.linqs.psl.application.inference.distributed;
 
+import org.linqs.psl.application.inference.distributed.message.Message;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +108,7 @@ public class NetUtils {
 			throw new RuntimeException("Failed to read message size.", ex);
 		}
 
+		sizeBuffer.flip();
 		int payloadSize = sizeBuffer.getInt();
 
 		// Possibly resize the buffer.
@@ -125,6 +128,7 @@ public class NetUtils {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}
 
+		buffer.flip();
 		return buffer;
 	}
 
@@ -138,6 +142,7 @@ public class NetUtils {
 			throw new RuntimeException("Failed to read message size.", ex);
 		}
 
+		// Note that we do not need to flip the buffer since we are reading directly into the byte array.
 		int payloadSize = sizeBuffer.getInt();
 
 		// Possibly resize the buffer.
@@ -157,6 +162,7 @@ public class NetUtils {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}
 
+		// Note that we do not need to flip the buffer since we are reading directly into the byte array.
 		return buffer;
 	}
 

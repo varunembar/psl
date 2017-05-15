@@ -17,6 +17,11 @@
  */
 package org.linqs.psl.application.inference.distributed;
 
+import org.linqs.psl.application.inference.distributed.message.Close;
+import org.linqs.psl.application.inference.distributed.message.Initialize;
+import org.linqs.psl.application.inference.distributed.message.Message;
+import org.linqs.psl.application.inference.distributed.message.Response;
+
 // TODO(eriq): Clean imports
 import org.linqs.psl.application.groundrulestore.GroundRuleStore;
 import org.linqs.psl.application.ModelApplication;
@@ -44,6 +49,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -102,10 +108,12 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	public void listen() {
 		Socket master = null;
 		InputStream inStream = null;
+		OutputStream outStream = null;
 
 		try {
 			master = server.accept();
 			inStream = master.getInputStream();
+			outStream = master.getOutputStream();
 		} catch (IOException ex) {
 			throw new RuntimeException("Unable to accept connection from master.", ex);
 		}
@@ -113,9 +121,10 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		log.info("Established connection with master: " + master.getRemoteSocketAddress());
 
 		ByteBuffer buffer = null;
+		boolean done = false;
 
 		// Accept messages from the master until it closes.
-		while (true) {
+		while (!done) {
 			// TEST
 			System.out.println("Waiting for messages from master");
 
@@ -124,6 +133,28 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 			// TEST
 			System.out.println("Got message: " + message);
+
+			if (message instanceof Initialize) {
+				// TEST
+				System.out.println("Init");
+			} else if (message instanceof Close) {
+				// TEST
+				System.out.println("Close");
+
+				done = true;
+			} else {
+				throw new IllegalStateException("Unknown message type: " + message.getClass().getName());
+			}
+
+			// Send a successful response.
+			// TODO(eriq): Failed responses.
+			buffer = NetUtils.sendMessage(new Response(true), outStream, buffer);
+		}
+
+		try {
+			master.close();
+		} catch (IOException ex) {
+			log.warn("Error while closing master connection... ignoring.", ex);
 		}
 	}
 

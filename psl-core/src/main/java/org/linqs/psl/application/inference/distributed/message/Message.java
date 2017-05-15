@@ -15,7 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.linqs.psl.application.inference.distributed;
+package org.linqs.psl.application.inference.distributed.message;
+
+import org.linqs.psl.application.inference.distributed.NetUtils;
 
 import java.nio.charset.Charset;
 import java.nio.ByteBuffer;
@@ -30,10 +32,10 @@ public abstract class Message {
 
 	public byte[] serialize() {
 		byte[] payload = serializePayload();
-      ByteBuffer encodedString = encodeString(this.getClass().getName());
+		ByteBuffer encodedString = encodeString(this.getClass().getName());
 
 		ByteBuffer buffer = ByteBuffer.allocate(payload.length + encodedString.capacity());
-      buffer.clear();
+		buffer.clear();
 		buffer.put(encodedString);
 		buffer.put(payload);
 
@@ -73,7 +75,7 @@ public abstract class Message {
 		byte[] strBytes = str.getBytes(Charset.forName(CHARSET_NAME));
 
 		ByteBuffer buffer = ByteBuffer.allocate(strBytes.length + NetUtils.INT_SIZE);
-      buffer.clear();
+		buffer.clear();
 		buffer.putInt(strBytes.length);
 		buffer.put(strBytes);
 		buffer.flip();

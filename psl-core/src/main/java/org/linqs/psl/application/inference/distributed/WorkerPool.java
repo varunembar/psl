@@ -17,6 +17,8 @@
  */
 package org.linqs.psl.application.inference.distributed;
 
+import org.linqs.psl.application.inference.distributed.message.Message;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,7 +199,8 @@ public class WorkerPool {
 
 			try {
 				boolean done = false;
-				while (readSelector.select() > 0) {
+				while (true) {
+					readSelector.select();
 					for (SelectionKey selectedKey : readSelector.selectedKeys()) {
 						// We only are interested in reading, so it better be ready.
 						if (!selectedKey.isReadable()) {
