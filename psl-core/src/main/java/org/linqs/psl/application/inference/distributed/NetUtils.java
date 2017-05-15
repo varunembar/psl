@@ -17,6 +17,9 @@
  */
 package org.linqs.psl.application.inference.distributed;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 // TODO(eriq): imports
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +37,8 @@ import java.util.NoSuchElementException;
  * Some network utilities.
  */
 public class NetUtils {
+	private static final Logger log = LoggerFactory.getLogger(NetUtils.class);
+
 	// Size of an int in bytes,
 	public static final int INT_SIZE = Integer.SIZE / Byte.SIZE;
 
@@ -51,7 +56,13 @@ public class NetUtils {
 
 		// Send out.
 		try {
+			// TEST
+			log.debug("Sending message ({}) to {}", message, socket.getRemoteAddress());
+
 			while (buffer.hasRemaining()) {
+				// TEST
+				System.out.println("TEST2");
+
 				socket.write(buffer);
 			}
 		} catch (IOException ex) {
@@ -66,7 +77,11 @@ public class NetUtils {
 
 		// Send out.
 		try {
+			// TEST
+			log.debug("Sending message ({}) to an out stream", message);
+
 			out.write(buffer.array());
+			out.flush();
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to write message.", ex);
 		}
@@ -103,6 +118,9 @@ public class NetUtils {
 		// Read the full payload.
 		try {
 			socket.read(buffer);
+
+			// TEST
+			log.debug("Recieved message (size: {}) from {}", payloadSize, socket.getRemoteAddress());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}
@@ -132,6 +150,9 @@ public class NetUtils {
 		// Read the full payload.
 		try {
 			inStream.read(buffer.array());
+
+			// TEST
+			log.debug("Recieved message (size: {}) from an inStream", payloadSize);
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}
@@ -153,7 +174,6 @@ public class NetUtils {
 
 		// Prepare for transfer.
 		buffer.flip();
-		buffer.compact();
 
 		return buffer;
 	}

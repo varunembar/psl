@@ -91,8 +91,10 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 	}
 
 	public FullInferenceResult mpeInference() {
-		log.info("Initializing Workers");
+		log.debug("Initializing Workers");
 		WorkerPool workers = initWorkers();
+
+		log.debug("Workers initialized");
 
 		/* TODO(eriq)
 		log.info("Beginning inference.");

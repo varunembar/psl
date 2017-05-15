@@ -110,15 +110,20 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			throw new RuntimeException("Unable to accept connection from master.", ex);
 		}
 
+		log.info("Established connection with master: " + master.getRemoteSocketAddress());
+
 		ByteBuffer buffer = null;
 
 		// Accept messages from the master until it closes.
 		while (true) {
+			// TEST
+			System.out.println("Waiting for messages from master");
+
 			buffer = NetUtils.readMessage(inStream, buffer);
 			Message message = Message.deserialize(buffer);
 
 			// TEST
-			System.out.println(message);
+			System.out.println("Got message: " + message);
 		}
 	}
 

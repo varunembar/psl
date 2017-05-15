@@ -30,13 +30,14 @@ public abstract class Message {
 
 	public byte[] serialize() {
 		byte[] payload = serializePayload();
+      ByteBuffer encodedString = encodeString(this.getClass().getName());
 
-		ByteBuffer buffer = ByteBuffer.allocate(payload.length + DEFAULT_NAME_SIZE);
-		buffer.put(encodeString(this.getClass().getName()));
+		ByteBuffer buffer = ByteBuffer.allocate(payload.length + encodedString.capacity());
+      buffer.clear();
+		buffer.put(encodedString);
 		buffer.put(payload);
 
 		buffer.flip();
-		buffer.compact();
 		return buffer.array();
 	}
 
@@ -72,6 +73,7 @@ public abstract class Message {
 		byte[] strBytes = str.getBytes(Charset.forName(CHARSET_NAME));
 
 		ByteBuffer buffer = ByteBuffer.allocate(strBytes.length + NetUtils.INT_SIZE);
+      buffer.clear();
 		buffer.putInt(strBytes.length);
 		buffer.put(strBytes);
 		buffer.flip();
@@ -85,7 +87,7 @@ public abstract class Message {
 	public static String decodeString(ByteBuffer buffer) {
 		int size = buffer.getInt();
 		byte[] strBytes = new byte[size];
-		buffer.get(strBytes, NetUtils.INT_SIZE, size);
+		buffer.get(strBytes);
 
 		return new String(strBytes, Charset.forName(CHARSET_NAME));
 	}

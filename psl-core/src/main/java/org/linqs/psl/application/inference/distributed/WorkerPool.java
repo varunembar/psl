@@ -70,6 +70,9 @@ public class WorkerPool {
 			try {
 				SocketChannel socket = SocketChannel.open();
 				socket.connect(new InetSocketAddress(host, port));
+				socket.finishConnect();
+
+				log.info("Established connection with worker: " + address);
 
 				// Do not block.
 				socket.configureBlocking(false);
