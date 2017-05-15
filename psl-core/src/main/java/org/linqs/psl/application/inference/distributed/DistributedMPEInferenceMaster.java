@@ -99,11 +99,13 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		WorkerPool workers = initWorkers();
 		log.debug("Workers initialized");
 
-		/* TODO(eriq)
+      ADMMReasonerMaster reasoner = new ADMMReasonerMaster(config, workers, atomManager);
+
 		log.info("Beginning inference.");
-		reasoner.optimize(termStore);
+		reasoner.optimize();
 		log.info("Inference complete. Writing results to Database.");
 
+		/* TODO(eriq)
 		// Commits the RandomVariableAtoms back to the Database.
 		int count = 0;
 		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {

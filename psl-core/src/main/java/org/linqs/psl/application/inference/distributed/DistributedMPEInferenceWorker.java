@@ -17,10 +17,13 @@
  */
 package org.linqs.psl.application.inference.distributed;
 
+import org.linqs.psl.application.inference.distributed.message.Ack;
 import org.linqs.psl.application.inference.distributed.message.Close;
+import org.linqs.psl.application.inference.distributed.message.ConsensusUpdate;
+import org.linqs.psl.application.inference.distributed.message.InitADMM;
 import org.linqs.psl.application.inference.distributed.message.Initialize;
 import org.linqs.psl.application.inference.distributed.message.Message;
-import org.linqs.psl.application.inference.distributed.message.Ack;
+import org.linqs.psl.application.inference.distributed.message.VariableList;
 
 // TODO(eriq): Clean imports
 import org.linqs.psl.application.groundrulestore.GroundRuleStore;
@@ -141,6 +144,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 			buffer = NetUtils.readMessage(inStream, buffer);
 			Message message = Message.deserialize(buffer);
+         Message response = new Ack(true);
 
 			// TEST
 			System.out.println("Got message: " + message);
@@ -150,6 +154,14 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 				System.out.println("Init");
 
 				initialize();
+			} else if (message instanceof InitADMM) {
+				// TEST
+				System.out.println("InitADMM");
+            // TEST
+            response = new VariableList(5);
+			} else if (message instanceof ConsensusUpdate) {
+				// TEST
+				System.out.println("ConsensusUpdate");
 			} else if (message instanceof Close) {
 				// TEST
 				System.out.println("Close");
@@ -161,7 +173,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 			// Send a successful response.
 			// TODO(eriq): Failed responses.
-			buffer = NetUtils.sendMessage(new Ack(true), outStream, buffer);
+			buffer = NetUtils.sendMessage(response, outStream, buffer);
 		}
 
 		try {

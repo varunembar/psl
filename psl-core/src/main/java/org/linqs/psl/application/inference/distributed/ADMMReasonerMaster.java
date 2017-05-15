@@ -18,6 +18,7 @@
 // TODO(eriq): Change package?
 package org.linqs.psl.application.inference.distributed;
 
+// TODO(eriq): Imports
 import org.linqs.psl.config.ConfigBundle;
 import org.linqs.psl.config.ConfigManager;
 import org.linqs.psl.model.rule.GroundRule;
@@ -35,6 +36,20 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+//
+
+import org.linqs.psl.model.atom.PersistedAtomManager;
+import org.linqs.psl.model.atom.RandomVariableAtom;
+
+import org.linqs.psl.application.inference.distributed.message.ConsensusUpdate;
+import org.linqs.psl.application.inference.distributed.message.InitADMM;
+import org.linqs.psl.application.inference.distributed.message.Message;
+import org.linqs.psl.application.inference.distributed.message.VariableList;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Master for distributed ADMM.
@@ -110,8 +125,28 @@ public class ADMMReasonerMaster {
 
 	private WorkerPool workers;
 
-	public ADMMReasonerMaster(ConfigBundle config, WorkerPool workers) {
+   // All of the variables that we have seen.
+   // {hashCode: index}.
+   private Map<Integer, Integer> allVariables;
+
+   // The mapping of all consensus variables, to the ones present in each worker.
+   // The outer array is keyed by the worker's id.
+   // The inner array is a mapping of the worker index to master index.
+   // [workerId][workerIndex] = masterIndex
+   private int[][] workerVariableMapping;
+
+   // Keep around the consensus update messages so we don't have to reallocate.
+   List<Message> updateMessages;
+
+   private PersistedAtomManager atomManager;
+
+	public ADMMReasonerMaster(ConfigBundle config, WorkerPool workers, PersistedAtomManager atomManager) {
 		this.workers = workers;
+      this.atomManager = atomManager;
+
+      allVariables = new HashMap<Integer, Integer>();
+      workerVariableMapping = new int[workers.size()][];
+      updateMessages = new ArrayList<Message>();
 
 		maxIter = config.getInt(MAX_ITER_KEY, MAX_ITER_DEFAULT);
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
@@ -128,59 +163,70 @@ public class ADMMReasonerMaster {
 		}
 	}
 
-	public int getMaxIter() {
-		return maxIter;
-	}
+   private double[] collectVariables() {
+      // Have workers collect and send all their variables.
+      // Don't wait for all responses, start building the mapping immediately.
+      for (Response response : workers.submit(new InitADMM())) {
+         if (!(response.getMessage() instanceof VariableList)) {
+            throw new RuntimeException("Did not recieve variables from worker as expected.");
+         }
 
-	public void setMaxIter(int maxIter) {
-		this.maxIter = maxIter;
-	}
+         int workerId = response.getWorker();
+         VariableList workerVariables = (VariableList)response.getMessage();
 
-	public double getEpsilonRel() {
-		return epsilonRel;
-	}
+         workerVariableMapping[workerId] = new int[workerVariables.size()];
 
-	public void setEpsilonRel(double epsilonRel) {
-		this.epsilonRel = epsilonRel;
-	}
+         for (int i = 0; i < workerVariables.size(); i++) {
+            Integer hashCode = new Integer(workerVariables.getVariable(i));
+            if (!allVariables.containsKey(hashCode)) {
+               allVariables.put(hashCode, allVariables.size());
+            }
 
-	public double getEpsilonAbs() {
-		return epsilonAbs;
-	}
+            workerVariableMapping[workerId][i] = allVariables.get(hashCode).intValue();
+         }
+      }
 
-	public void setEpsilonAbs(double epsilonAbs) {
-		this.epsilonAbs = epsilonAbs;
-	}
+      // Allocate the messages that we will use to pass the consensus updates.
+      for (int i = 0; i < workers.size(); i++) {
+         updateMessages.add(new ConsensusUpdate(workerVariableMapping[i].length));
+      }
 
-	public double getLagrangianPenalty() {
-		return this.lagrangePenalty;
-	}
+      // Initialize the consensus vector.
+		// Also sometimes called 'z'.
+		double[] consensusValues = new double[allVariables.size()];
+      for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
+         // We may not use all random variable atoms.
+         if (!allVariables.containsKey(atom.hashCode())) {
+            continue;
+         }
 
-	public double getAugmentedLagrangianPenalty() {
-		return this.augmentedLagrangePenalty;
-	}
+         consensusValues[allVariables.get(atom.hashCode()).intValue()] = atom.getValue();
+      }
 
-	/**
-	 * Computes the incompatibility of the local variable copies corresponding to
-	 * GroundRule groundRule
-	 * @param groundRule
-	 * @return local (dual) incompatibility
-	 */
-	public double getDualIncompatibility(GroundRule groundRule) {
-		/* TODO(eriq): Unsupported until you can get Terms by GroundRules.
-		int index = orderedGroundRules.get(groundRule);
-		ADMMObjectiveTerm term = termStore.get(index);
-		for (int i = 0; i < term.zIndices.length; i++) {
-			int zIndex = term.zIndices[i];
-			variables.get(zIndex).setValue(term.x[i]);
-		}
-		return ((WeightedGroundRule)groundRule).getIncompatibility();
-		*/
-		throw new UnsupportedOperationException("Temporarily unsupported during rework");
-	}
+      return consensusValues;
+   }
+
+   private void updateWorkerConsensus(double[] consensusValues) {
+      // All the update messages have already been allocated, but we need to update them.
+      for (int workerId = 0; workerId < workers.size(); workerId++) {
+         for (int remoteVariableId = 0; remoteVariableId < workerVariableMapping[workerId].length; remoteVariableId++) {
+            ((ConsensusUpdate)updateMessages.get(workerId)).setValue(
+                  remoteVariableId, consensusValues[workerVariableMapping[workerId][remoteVariableId]]);
+         }
+      }
+
+      // Send out the updates and wait for all responses.
+      workers.blockingSubmit(updateMessages);
+   }
 
 	// @Override
 	public void optimize() {
+      // TODO(eriq): Move variable maps out to another method.
+
+      double[] consensusValues = collectVariables();
+
+      updateWorkerConsensus(consensusValues);
+
       /*
 		// Also sometimes called 'z'.
 		double[] consensusValues = new double[termStore.getNumGlobalVariables()];

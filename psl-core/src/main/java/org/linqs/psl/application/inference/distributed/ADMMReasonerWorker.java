@@ -145,57 +145,6 @@ public class ADMMReasonerWorker {
 		}
 	}
 
-	public int getMaxIter() {
-		return maxIter;
-	}
-
-	public void setMaxIter(int maxIter) {
-		this.maxIter = maxIter;
-	}
-
-	public double getEpsilonRel() {
-		return epsilonRel;
-	}
-
-	public void setEpsilonRel(double epsilonRel) {
-		this.epsilonRel = epsilonRel;
-	}
-
-	public double getEpsilonAbs() {
-		return epsilonAbs;
-	}
-
-	public void setEpsilonAbs(double epsilonAbs) {
-		this.epsilonAbs = epsilonAbs;
-	}
-
-	public double getLagrangianPenalty() {
-		return this.lagrangePenalty;
-	}
-
-	public double getAugmentedLagrangianPenalty() {
-		return this.augmentedLagrangePenalty;
-	}
-
-	/**
-	 * Computes the incompatibility of the local variable copies corresponding to
-	 * GroundRule groundRule
-	 * @param groundRule
-	 * @return local (dual) incompatibility
-	 */
-	public double getDualIncompatibility(GroundRule groundRule) {
-		/* TODO(eriq): Unsupported until you can get Terms by GroundRules.
-		int index = orderedGroundRules.get(groundRule);
-		ADMMObjectiveTerm term = termStore.get(index);
-		for (int i = 0; i < term.zIndices.length; i++) {
-			int zIndex = term.zIndices[i];
-			variables.get(zIndex).setValue(term.x[i]);
-		}
-		return ((WeightedGroundRule)groundRule).getIncompatibility();
-		*/
-		throw new UnsupportedOperationException("Temporarily unsupported during rework");
-	}
-
 	// @Override
 	public void optimize(TermStore baseTermStore) {
       /*

@@ -20,31 +20,20 @@ package org.linqs.psl.application.inference.distributed.message;
 import java.nio.ByteBuffer;
 
 /**
- * A simple response indicating success or failure of a previous message.
+ * A message indicating that the worker should initilize ADMM for processing.
  */
-public class Ack extends Message {
-	private boolean success;
-
-	public Ack() {
-		this(false);
-	}
-
-	public Ack(boolean success) {
-		this.success = success;
-	}
-
+public class InitADMM extends Message {
 	@Override
 	protected byte[] serializePayload() {
-		return new byte[]{(byte)(success ? 1 : 0)};
+		return new byte[0];
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
-		success = payload.get() == 1;
 	}
 
 	@Override
 	public String toString() {
-		return "Ack: " + success;
+		return "InitADMM";
 	}
 }

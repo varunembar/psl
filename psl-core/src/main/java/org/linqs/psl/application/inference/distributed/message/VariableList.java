@@ -17,34 +17,58 @@
  */
 package org.linqs.psl.application.inference.distributed.message;
 
+import org.linqs.psl.application.inference.distributed.NetUtils;
+
 import java.nio.ByteBuffer;
 
 /**
- * A simple response indicating success or failure of a previous message.
+ * A response containing a list of variables represented by the
+ * hash of their associated ground atom.
  */
-public class Ack extends Message {
-	private boolean success;
+public class VariableList extends Message {
+	private int[] variables;
 
-	public Ack() {
-		this(false);
+	public VariableList() {
 	}
 
-	public Ack(boolean success) {
-		this.success = success;
+	public VariableList(int size) {
+		variables = new int[size];
 	}
+
+   public int size() {
+      return variables.length;
+   }
+
+   public int getVariable(int i) {
+      return variables[i];
+   }
 
 	@Override
 	protected byte[] serializePayload() {
-		return new byte[]{(byte)(success ? 1 : 0)};
+      ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE * (variables.length + 1));
+      buffer.clear();
+      buffer.putInt(variables.length);
+
+      for (int variable : variables) {
+         buffer.putInt(variable);
+      }
+      buffer.flip();
+
+		return buffer.array();
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
-		success = payload.get() == 1;
+      int size = payload.getInt();
+      variables = new int[size];
+
+      for (int i = 0; i < size; i++) {
+         variables[i] = payload.getInt();
+      }
 	}
 
 	@Override
 	public String toString() {
-		return "Ack: " + success;
+		return "VariableList: " + variables.length;
 	}
 }

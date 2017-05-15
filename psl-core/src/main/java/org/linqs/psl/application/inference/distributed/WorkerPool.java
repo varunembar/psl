@@ -89,6 +89,13 @@ public class WorkerPool {
 		}
 	}
 
+   /**
+    * Get the number of workers.
+    */
+   public int size() {
+      return workers.size();
+   }
+
 	/**
 	 * Submit a message to all workers and wait for all workers to respond.
 	 */

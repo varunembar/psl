@@ -43,6 +43,7 @@ public class NetUtils {
 
 	// Size of an int in bytes,
 	public static final int INT_SIZE = Integer.SIZE / Byte.SIZE;
+	public static final int DOUBLE_SIZE = Double.SIZE / Byte.SIZE;
 
 	// A buffer just to read the size of the message into.
 	private static ByteBuffer sizeBuffer = ByteBuffer.allocate(INT_SIZE);
