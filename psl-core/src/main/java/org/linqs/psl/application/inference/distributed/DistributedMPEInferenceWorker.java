@@ -20,10 +20,11 @@ package org.linqs.psl.application.inference.distributed;
 import org.linqs.psl.application.inference.distributed.message.Close;
 import org.linqs.psl.application.inference.distributed.message.Initialize;
 import org.linqs.psl.application.inference.distributed.message.Message;
-import org.linqs.psl.application.inference.distributed.message.Response;
+import org.linqs.psl.application.inference.distributed.message.Ack;
 
 // TODO(eriq): Clean imports
 import org.linqs.psl.application.groundrulestore.GroundRuleStore;
+import org.linqs.psl.application.groundrulestore.MemoryGroundRuleStore;
 import org.linqs.psl.application.ModelApplication;
 import org.linqs.psl.application.inference.result.FullInferenceResult;
 import org.linqs.psl.application.inference.result.memory.MemoryFullInferenceResult;
@@ -41,7 +42,10 @@ import org.linqs.psl.model.atom.PersistedAtomManager;
 import org.linqs.psl.model.atom.RandomVariableAtom;
 import org.linqs.psl.reasoner.Reasoner;
 import org.linqs.psl.reasoner.ReasonerFactory;
+import org.linqs.psl.reasoner.admm.ADMMReasoner;
 import org.linqs.psl.reasoner.admm.ADMMReasonerFactory;
+import org.linqs.psl.reasoner.admm.term.ADMMTermStore;
+import org.linqs.psl.reasoner.admm.term.ADMMTermGenerator;
 import org.linqs.psl.reasoner.term.TermGenerator;
 import org.linqs.psl.reasoner.term.TermStore;
 import org.slf4j.Logger;
@@ -58,6 +62,7 @@ import java.nio.ByteBuffer;
  * A distributed worker.
  */
 // TODO(eriq): Do we need this implemenation?
+// TODO(eriq): Better comments with usage.
 public class DistributedMPEInferenceWorker implements ModelApplication {
 	private static final Logger log = LoggerFactory.getLogger(DistributedMPEInferenceWorker.class);
 
@@ -81,8 +86,13 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	protected Model model;
 	protected Database db;
 	protected ConfigBundle config;
-	protected PersistedAtomManager atomManager;
+
 	protected ServerSocket server;
+
+	protected Reasoner reasoner;
+	protected PersistedAtomManager atomManager;
+	protected GroundRuleStore groundRuleStore;
+	protected TermStore termStore;
 
 	// TODO(eriq): Kids through config?
 	// TODO(eriq): Get model and db over wire?
@@ -97,8 +107,9 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			throw new RuntimeException("Failed to create socket for listening.", ex);
 		}
 
-		log.debug("Creating persisted atom mannager.");
-		atomManager = new PersistedAtomManager(db);
+		reasoner = new ADMMReasoner(config);
+		termStore = new ADMMTermStore(config);
+		groundRuleStore = new MemoryGroundRuleStore();
 	}
 
 	/**
@@ -137,6 +148,8 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			if (message instanceof Initialize) {
 				// TEST
 				System.out.println("Init");
+
+				initialize();
 			} else if (message instanceof Close) {
 				// TEST
 				System.out.println("Close");
@@ -148,7 +161,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 			// Send a successful response.
 			// TODO(eriq): Failed responses.
-			buffer = NetUtils.sendMessage(new Response(true), outStream, buffer);
+			buffer = NetUtils.sendMessage(new Ack(true), outStream, buffer);
 		}
 
 		try {
@@ -158,9 +171,29 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		}
 	}
 
+	/**
+	 * Generate the terms for optimization.
+	 */
+	// TODO(eriq): Only ADMM for now.
+	private void initialize() {
+		TermGenerator termGenerator = new ADMMTermGenerator(config);
+
+		log.debug("Creating persisted atom mannager.");
+		atomManager = new PersistedAtomManager(db);
+
+		log.info("Grounding out model.");
+		Grounding.groundAll(model, atomManager, groundRuleStore);
+
+		log.debug("Initializing objective terms for {} ground rules.", groundRuleStore.size());
+		termGenerator.generateTerms(groundRuleStore, termStore);
+
+		log.debug("Generated {} objective terms from {} ground rules.", termStore.size(), groundRuleStore.size());
+	}
+
 	@Override
+	// TODO(eriq)
 	public void close() {
-		model=null;
+		model = null;
 		db = null;
 		config = null;
 	}

@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.linqs.psl.reasoner.admm;
+// TODO(eriq): Change package?
+package org.linqs.psl.application.inference.distributed;
 
 import org.linqs.psl.config.ConfigBundle;
 import org.linqs.psl.config.ConfigManager;
@@ -36,13 +37,11 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 /**
- * Uses an ADMM optimization method to optimize its GroundRules.
- *
- * @author Stephen Bach <bach@cs.umd.edu>
- * @author Eric Norris
+ * Master for distributed ADMM.
  */
-public class ADMMReasoner implements Reasoner {
-	private static final Logger log = LoggerFactory.getLogger(ADMMReasoner.class);
+// TODO(eriq): Interface?
+public class ADMMReasonerMaster {
+	private static final Logger log = LoggerFactory.getLogger(ADMMReasonerMaster.class);
 
 	/**
 	 * Prefix of property keys used by this class.
@@ -91,14 +90,6 @@ public class ADMMReasoner implements Reasoner {
 	/** Default value for STOP_CHECK_KEY property */
 	public static final int STOP_CHECK_DEFAULT = 1;
 
-	/**
-	 * Key for positive integer. Number of threads to run the optimization in.
-	 */
-	public static final String NUM_THREADS_KEY = CONFIG_PREFIX + ".numthreads";
-	/** Default value for STOP_CHECK_KEY property
-	 * (by default uses the number of processors in the system) */
-	public static final int NUM_THREADS_DEFAULT = Runtime.getRuntime().availableProcessors();
-
 	private static final double LOWER_BOUND = 0.0;
 	private static final double UPPER_BOUND = 1.0;
 
@@ -106,11 +97,6 @@ public class ADMMReasoner implements Reasoner {
 	 * Sometimes called eta or rho,
 	 */
 	private final double stepSize;
-
-	/**
-	 * Multithreading variables
-	 */
-	private final int numThreads;
 
 	private double epsilonRel;
 	private double epsilonAbs;
@@ -122,7 +108,11 @@ public class ADMMReasoner implements Reasoner {
 
 	private int maxIter;
 
-	public ADMMReasoner(ConfigBundle config) {
+	private WorkerPool workers;
+
+	public ADMMReasonerMaster(ConfigBundle config, WorkerPool workers) {
+		this.workers = workers;
+
 		maxIter = config.getInt(MAX_ITER_KEY, MAX_ITER_DEFAULT);
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
 		stopCheck = config.getInt(STOP_CHECK_KEY, STOP_CHECK_DEFAULT);
@@ -135,12 +125,6 @@ public class ADMMReasoner implements Reasoner {
 		epsilonRel = config.getDouble(EPSILON_REL_KEY, EPSILON_REL_DEFAULT);
 		if (epsilonRel <= 0) {
 			throw new IllegalArgumentException("Property " + EPSILON_REL_KEY + " must be positive.");
-		}
-
-		// Multithreading
-		numThreads = config.getInt(NUM_THREADS_KEY, NUM_THREADS_DEFAULT);
-		if (numThreads <= 0) {
-			throw new IllegalArgumentException("Property " + NUM_THREADS_KEY + " must be positive.");
 		}
 	}
 
@@ -195,15 +179,9 @@ public class ADMMReasoner implements Reasoner {
 		throw new UnsupportedOperationException("Temporarily unsupported during rework");
 	}
 
-	@Override
-	public void optimize(TermStore baseTermStore) {
-		if (!(baseTermStore instanceof ADMMTermStore)) {
-			throw new IllegalArgumentException("ADMMReasoner requires an ADMMTermStore");
-		}
-		ADMMTermStore termStore = (ADMMTermStore)baseTermStore;
-
-		log.debug("Performing optimization with {} variables and {} terms.", termStore.getNumGlobalVariables(), termStore.size());
-
+	// @Override
+	public void optimize() {
+      /*
 		// Also sometimes called 'z'.
 		double[] consensusValues = new double[termStore.getNumGlobalVariables()];
 
@@ -302,12 +280,14 @@ public class ADMMReasoner implements Reasoner {
 
 		// Updates variables
 		termStore.updateVariables(consensusValues);
+      */
 	}
 
-	@Override
+	// @Override
 	public void close() {
 	}
 
+   /*
 	private class ADMMTask implements Runnable {
 		// Set by the parent thread each round of optimization.
 		public volatile boolean done;
@@ -429,7 +409,7 @@ public class ADMMReasoner implements Reasoner {
 					}
 					consensusValues[i] = newConsensusValue;
 
-					// Second pass computes primal residuals.
+					// Second pass computes primal residuals
 					if (check) {
 						for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
 							double diff = localVariable.getValue() - newConsensusValue;
@@ -445,4 +425,5 @@ public class ADMMReasoner implements Reasoner {
 			}
 		}
 	}
+   */
 }

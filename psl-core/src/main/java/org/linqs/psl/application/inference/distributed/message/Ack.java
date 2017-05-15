@@ -20,16 +20,16 @@ package org.linqs.psl.application.inference.distributed.message;
 import java.nio.ByteBuffer;
 
 /**
- * A simple response indicating success or failure.
+ * A simple response indicating success or failure of a previous message.
  */
-public class Response extends Message {
+public class Ack extends Message {
 	boolean success;
 
-	public Response() {
+	public Ack() {
 		this(false);
 	}
 
-	public Response(boolean success) {
+	public Ack(boolean success) {
 		this.success = success;
 	}
 
@@ -45,6 +45,6 @@ public class Response extends Message {
 
 	@Override
 	public String toString() {
-		return "Response: " + success;
+		return "Ack: " + success;
 	}
 }

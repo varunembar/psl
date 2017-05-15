@@ -59,12 +59,9 @@ public class NetUtils {
 		// Send out.
 		try {
 			// TEST
-			log.debug("Sending message ({}) to {}", message, socket.getRemoteAddress());
+			log.debug("Sending message ({})[{}] to {}", message, buffer.limit(), socket.getRemoteAddress());
 
 			while (buffer.hasRemaining()) {
-				// TEST
-				System.out.println("TEST2");
-
 				socket.write(buffer);
 			}
 		} catch (IOException ex) {
@@ -80,9 +77,9 @@ public class NetUtils {
 		// Send out.
 		try {
 			// TEST
-			log.debug("Sending message ({}) to an out stream", message);
+			log.debug("Sending message ({})[{}] to an out stream", message, buffer.limit());
 
-			out.write(buffer.array());
+			out.write(buffer.array(), 0, buffer.limit());
 			out.flush();
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to write message.", ex);
@@ -123,7 +120,7 @@ public class NetUtils {
 			socket.read(buffer);
 
 			// TEST
-			log.debug("Recieved message (size: {}) from {}", payloadSize, socket.getRemoteAddress());
+			log.debug("Recieved message (size: {}) from {}", payloadSize + sizeBuffer.capacity(), socket.getRemoteAddress());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}
@@ -154,10 +151,11 @@ public class NetUtils {
 		// TODO(eriq): Could we read short?
 		// Read the full payload.
 		try {
-			inStream.read(buffer.array());
+			inStream.read(buffer.array(), 0, payloadSize);
+         buffer.limit(payloadSize);
 
 			// TEST
-			log.debug("Recieved message (size: {}) from an inStream", payloadSize);
+			log.debug("Recieved message (size: {}) from an in stream", payloadSize + sizeBuffer.limit());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}

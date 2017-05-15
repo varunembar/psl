@@ -129,10 +129,10 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 
 	private WorkerPool initWorkers() {
 		WorkerPool workers = new WorkerPool(workerAddresses);
-		List<Message> responses = workers.blockingSubmit(new Initialize());
+		List<Response> responses = workers.blockingSubmit(new Initialize());
 
 		// TEST
-		for (Message response : responses) {
+		for (Response response : responses) {
 			System.out.println(response);
 		}
 
@@ -140,10 +140,10 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 	}
 
 	private void closeWorkers(WorkerPool workers) {
-		List<Message> responses = workers.blockingSubmit(new Close());
+		List<Response> responses = workers.blockingSubmit(new Close());
 
 		// TEST
-		for (Message response : responses) {
+		for (Response response : responses) {
 			System.out.println(response);
 		}
 

@@ -37,6 +37,9 @@ import java.util.Queue;
 
 /**
  * Handle a collection of connections to workers.
+ * Callers should never rely on the order of responses from the workers.
+ * Instead, use the worker ids from the Response to identify workers.
+ * Ids are guarenteed to be increasing from zero with no gaps.
  */
 // TODO(eriq): All messages will be prefixed with the size of the payload (not including the size).
 public class WorkerPool {
@@ -89,9 +92,9 @@ public class WorkerPool {
 	/**
 	 * Submit a message to all workers and wait for all workers to respond.
 	 */
-	public List<Message> blockingSubmit(List<Message> messages) {	
-		List<Message> responses = new ArrayList<Message>();
-		for (Message response : submit(messages)) {
+	public List<Response> blockingSubmit(List<Message> messages) {	
+		List<Response> responses = new ArrayList<Response>(workers.size());
+		for (Response response : submit(messages)) {
 			responses.add(response);
 		}
 
@@ -101,7 +104,7 @@ public class WorkerPool {
 	/**
 	 * Submit the same message to all workers and wait for a response.
 	 */
-	public List<Message> blockingSubmit(Message message) {
+	public List<Response> blockingSubmit(Message message) {
 		List<Message> messages = new ArrayList<Message>();
 		for (int i = 0; i < workers.size(); i++) {
 			messages.add(message);
@@ -113,7 +116,7 @@ public class WorkerPool {
 	/**
 	 * Do not wait for all workers to respond, instead make the iterator (next()) block until at least one response is ready.
 	 */
-	public Iterable<Message> submit(List<Message> messages) {
+	public Iterable<Response> submit(List<Message> messages) {
 		assert(messages.size() == workers.size());
 
 		if (activeIterator != null) {
@@ -133,7 +136,7 @@ public class WorkerPool {
 		return activeIterator;
 	}
 
-	public Iterable<Message> submit(Message message) {
+	public Iterable<Response> submit(Message message) {
 		List<Message> messages = new ArrayList<Message>();
 		for (int i = 0; i < workers.size(); i++) {
 			messages.add(message);
@@ -163,14 +166,14 @@ public class WorkerPool {
 		readSelector = null;
 	}
 
-	private class ResponseIterator implements Iterable<Message>, Iterator<Message> {
+	private class ResponseIterator implements Iterable<Response>, Iterator<Response> {
 		private int numResponses;
-		private Queue<Message> responseQueue;
+		private Queue<Response> responseQueue;
 		private boolean[] recievedResponses;
 
 		public ResponseIterator() {
 			numResponses = 0;
-			responseQueue = new LinkedList<Message>();
+			responseQueue = new LinkedList<Response>();
 
 			recievedResponses = new boolean[workers.size()];
 			for (int i = 0; i < recievedResponses.length; i++) {
@@ -178,7 +181,7 @@ public class WorkerPool {
 			}
 		}
 
-		public Iterator<Message> iterator() {
+		public Iterator<Response> iterator() {
 			return this;
 		}
 
@@ -186,7 +189,7 @@ public class WorkerPool {
 			return !responseQueue.isEmpty() || numResponses < workers.size();
 		}
 
-		public Message next() {
+		public Response next() {
 			if (!hasNext()) {
 				throw new NoSuchElementException();
 			}
@@ -217,7 +220,7 @@ public class WorkerPool {
 						}
 
 						recievedResponses[workerIndex] = true;
-						responseQueue.add(Message.deserialize(payloadBuffer));
+						responseQueue.add(new Response(workerIndex, Message.deserialize(payloadBuffer)));
 						numResponses++;
 
 						done = true;
@@ -231,7 +234,7 @@ public class WorkerPool {
 				throw new RuntimeException("Error selecting from workers", ex);
 			}
 
-			Message response = responseQueue.remove();
+			Response response = responseQueue.remove();
 
 			// If we have recieved all responses, prepare for the next request.
 			if (responseQueue.isEmpty() && numResponses == workers.size()) {

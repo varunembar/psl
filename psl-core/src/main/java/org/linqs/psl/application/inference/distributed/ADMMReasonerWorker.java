@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.linqs.psl.reasoner.admm;
+// TODO(eriq): Change package?
+package org.linqs.psl.application.inference.distributed;
 
 import org.linqs.psl.config.ConfigBundle;
 import org.linqs.psl.config.ConfigManager;
@@ -36,13 +37,11 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 /**
- * Uses an ADMM optimization method to optimize its GroundRules.
- *
- * @author Stephen Bach <bach@cs.umd.edu>
- * @author Eric Norris
+ * Worker for distributed ADMM.
  */
-public class ADMMReasoner implements Reasoner {
-	private static final Logger log = LoggerFactory.getLogger(ADMMReasoner.class);
+// TODO(eriq): Interface?
+public class ADMMReasonerWorker {
+	private static final Logger log = LoggerFactory.getLogger(ADMMReasonerWorker.class);
 
 	/**
 	 * Prefix of property keys used by this class.
@@ -50,6 +49,8 @@ public class ADMMReasoner implements Reasoner {
 	 * @see ConfigManager
 	 */
 	public static final String CONFIG_PREFIX = "admmreasoner";
+
+	// TODO(eriq): Check which options we actually need.
 
 	/**
 	 * Key for int property for the maximum number of iterations of ADMM to
@@ -122,7 +123,7 @@ public class ADMMReasoner implements Reasoner {
 
 	private int maxIter;
 
-	public ADMMReasoner(ConfigBundle config) {
+	public ADMMReasonerWorker(ConfigBundle config) {
 		maxIter = config.getInt(MAX_ITER_KEY, MAX_ITER_DEFAULT);
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
 		stopCheck = config.getInt(STOP_CHECK_KEY, STOP_CHECK_DEFAULT);
@@ -195,8 +196,9 @@ public class ADMMReasoner implements Reasoner {
 		throw new UnsupportedOperationException("Temporarily unsupported during rework");
 	}
 
-	@Override
+	// @Override
 	public void optimize(TermStore baseTermStore) {
+      /*
 		if (!(baseTermStore instanceof ADMMTermStore)) {
 			throw new IllegalArgumentException("ADMMReasoner requires an ADMMTermStore");
 		}
@@ -218,7 +220,7 @@ public class ADMMReasoner implements Reasoner {
 			threadPool.submit(tasks[i]);
 		}
 
-		// Performs inference.
+		// Performs inference
 		double primalRes = Double.POSITIVE_INFINITY;
 		double dualRes = Double.POSITIVE_INFINITY;
 		double epsilonPrimal = 0;
@@ -302,12 +304,14 @@ public class ADMMReasoner implements Reasoner {
 
 		// Updates variables
 		termStore.updateVariables(consensusValues);
+      */
 	}
 
-	@Override
+	// @Override
 	public void close() {
 	}
 
+   /*
 	private class ADMMTask implements Runnable {
 		// Set by the parent thread each round of optimization.
 		public volatile boolean done;
@@ -445,4 +449,5 @@ public class ADMMReasoner implements Reasoner {
 			}
 		}
 	}
+   */
 }
