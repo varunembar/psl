@@ -93,6 +93,19 @@ public class ADMMTermStore implements TermStore<ADMMObjectiveTerm> {
 		return localVariable;
 	}
 
+	/**
+	 * Get all of the global variables.
+	 * This method is not as simple as it may seem and should not be called often.
+	 */
+	public AtomFunctionVariable[] getGlobalVariables() {
+		AtomFunctionVariable[] variables = new AtomFunctionVariable[variableIndexes.size()];
+		for (Map.Entry<AtomFunctionVariable, Integer> entry : variableIndexes.entrySet()) {
+			variables[entry.getValue().intValue()] = entry.getKey();
+		}
+
+		return variables;
+	}
+
 	public int getNumLocalVariables() {
 		return numLocalVariables;
 	}

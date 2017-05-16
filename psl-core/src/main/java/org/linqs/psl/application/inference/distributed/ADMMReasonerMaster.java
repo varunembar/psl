@@ -43,6 +43,8 @@ import org.linqs.psl.model.atom.RandomVariableAtom;
 
 import org.linqs.psl.application.inference.distributed.message.ConsensusUpdate;
 import org.linqs.psl.application.inference.distributed.message.InitADMM;
+import org.linqs.psl.application.inference.distributed.message.IterationResult;
+import org.linqs.psl.application.inference.distributed.message.IterationStart;
 import org.linqs.psl.application.inference.distributed.message.Message;
 import org.linqs.psl.application.inference.distributed.message.VariableList;
 
@@ -97,14 +99,6 @@ public class ADMMReasonerMaster {
 	/** Default value for EPSILON_ABS_KEY property */
 	public static final double EPSILON_REL_DEFAULT = 1e-3;
 
-	/**
-	 * Key for positive integer. The number of ADMM iterations after which the
-	 * termination criteria will be checked.
-	 */
-	public static final String STOP_CHECK_KEY = CONFIG_PREFIX + ".stopcheck";
-	/** Default value for STOP_CHECK_KEY property */
-	public static final int STOP_CHECK_DEFAULT = 1;
-
 	private static final double LOWER_BOUND = 0.0;
 	private static final double UPPER_BOUND = 1.0;
 
@@ -116,41 +110,42 @@ public class ADMMReasonerMaster {
 	private double epsilonRel;
 	private double epsilonAbs;
 
-	private final int stopCheck;
-
-	private double lagrangePenalty;
-	private double augmentedLagrangePenalty;
-
 	private int maxIter;
 
 	private WorkerPool workers;
 
-   // All of the variables that we have seen.
-   // {hashCode: index}.
-   private Map<Integer, Integer> allVariables;
+	// TODO(eriq): I would live a better identifier than the full string form.
+	//   Hash is no good since it is not perfect (there can be collisions).
+	// All of the variables that we have seen.
+	// {string: index}.
+	private Map<String, Integer> allVariables;
 
-   // The mapping of all consensus variables, to the ones present in each worker.
-   // The outer array is keyed by the worker's id.
-   // The inner array is a mapping of the worker index to master index.
-   // [workerId][workerIndex] = masterIndex
-   private int[][] workerVariableMapping;
+	// The mapping of all consensus variables, to the ones present in each worker.
+	// The outer array is keyed by the worker's id.
+	// The inner array is a mapping of the worker index to master index.
+	// [workerId][workerIndex] = masterIndex
+	private int[][] workerVariableMapping;
 
-   // Keep around the consensus update messages so we don't have to reallocate.
-   List<Message> updateMessages;
+	// The sum of the counts of local variables reported by each worker.
+	// Required for initialization.
+	private int numLocalVariables;
 
-   private PersistedAtomManager atomManager;
+	// Keep around the consensus update messages so we don't have to reallocate.
+	List<Message> updateMessages;
+
+	private PersistedAtomManager atomManager;
 
 	public ADMMReasonerMaster(ConfigBundle config, WorkerPool workers, PersistedAtomManager atomManager) {
 		this.workers = workers;
-      this.atomManager = atomManager;
+		this.atomManager = atomManager;
 
-      allVariables = new HashMap<Integer, Integer>();
-      workerVariableMapping = new int[workers.size()][];
-      updateMessages = new ArrayList<Message>();
+		allVariables = new HashMap<String, Integer>();
+		workerVariableMapping = new int[workers.size()][];
+		updateMessages = new ArrayList<Message>();
+		numLocalVariables = 0;
 
 		maxIter = config.getInt(MAX_ITER_KEY, MAX_ITER_DEFAULT);
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
-		stopCheck = config.getInt(STOP_CHECK_KEY, STOP_CHECK_DEFAULT);
 
 		epsilonAbs = config.getDouble(EPSILON_ABS_KEY, EPSILON_ABS_DEFAULT);
 		if (epsilonAbs <= 0) {
@@ -163,141 +158,164 @@ public class ADMMReasonerMaster {
 		}
 	}
 
-   private double[] collectVariables() {
-      // Have workers collect and send all their variables.
-      // Don't wait for all responses, start building the mapping immediately.
-      for (Response response : workers.submit(new InitADMM())) {
-         if (!(response.getMessage() instanceof VariableList)) {
-            throw new RuntimeException("Did not recieve variables from worker as expected.");
-         }
+	private double[] collectVariables() {
+		// Have workers collect and send all their variables.
+		// Don't wait for all responses, start building the mapping immediately.
+		for (Response response : workers.submit(new InitADMM())) {
+			if (!(response.getMessage() instanceof VariableList)) {
+				throw new RuntimeException("Did not recieve variables from worker as expected.");
+			}
 
-         int workerId = response.getWorker();
-         VariableList workerVariables = (VariableList)response.getMessage();
+			int workerId = response.getWorker();
+			VariableList workerVariables = (VariableList)response.getMessage();
 
-         workerVariableMapping[workerId] = new int[workerVariables.size()];
+			numLocalVariables += workerVariables.getNumLocalVariables();
 
-         for (int i = 0; i < workerVariables.size(); i++) {
-            Integer hashCode = new Integer(workerVariables.getVariable(i));
-            if (!allVariables.containsKey(hashCode)) {
-               allVariables.put(hashCode, allVariables.size());
-            }
+			workerVariableMapping[workerId] = new int[workerVariables.size()];
+			for (int i = 0; i < workerVariables.size(); i++) {
+				String key = workerVariables.getVariable(i);
+				if (!allVariables.containsKey(key)) {
+					allVariables.put(key, allVariables.size());
+				}
 
-            workerVariableMapping[workerId][i] = allVariables.get(hashCode).intValue();
-         }
-      }
+				workerVariableMapping[workerId][i] = allVariables.get(key).intValue();
+			}
+		}
 
-      // Allocate the messages that we will use to pass the consensus updates.
-      for (int i = 0; i < workers.size(); i++) {
-         updateMessages.add(new ConsensusUpdate(workerVariableMapping[i].length));
-      }
+		// Allocate the messages that we will use to pass the consensus updates.
+		for (int i = 0; i < workers.size(); i++) {
+			updateMessages.add(new ConsensusUpdate(workerVariableMapping[i].length));
+		}
 
-      // Initialize the consensus vector.
+		// Initialize the consensus vector.
 		// Also sometimes called 'z'.
 		double[] consensusValues = new double[allVariables.size()];
-      for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
-         // We may not use all random variable atoms.
-         if (!allVariables.containsKey(atom.hashCode())) {
-            continue;
-         }
+		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
+			String key = atom.toString();
 
-         consensusValues[allVariables.get(atom.hashCode()).intValue()] = atom.getValue();
-      }
+			// We may not use all random variable atoms.
+			if (!allVariables.containsKey(key)) {
+				continue;
+			}
 
-      return consensusValues;
-   }
+			consensusValues[allVariables.get(key).intValue()] = atom.getValue();
+		}
 
-   private void updateWorkerConsensus(double[] consensusValues) {
-      // All the update messages have already been allocated, but we need to update them.
-      for (int workerId = 0; workerId < workers.size(); workerId++) {
-         for (int remoteVariableId = 0; remoteVariableId < workerVariableMapping[workerId].length; remoteVariableId++) {
-            ((ConsensusUpdate)updateMessages.get(workerId)).setValue(
-                  remoteVariableId, consensusValues[workerVariableMapping[workerId][remoteVariableId]]);
-         }
-      }
+		return consensusValues;
+	}
 
-      // Send out the updates and wait for all responses.
-      workers.blockingSubmit(updateMessages);
-   }
+	private void updateWorkerConsensus(double[] consensusValues) {
+		// All the update messages have already been allocated, but we need to update them.
+		for (int workerId = 0; workerId < workers.size(); workerId++) {
+			for (int remoteVariableId = 0; remoteVariableId < workerVariableMapping[workerId].length; remoteVariableId++) {
+				((ConsensusUpdate)updateMessages.get(workerId)).setValue(
+						remoteVariableId, consensusValues[workerVariableMapping[workerId][remoteVariableId]]);
+			}
+		}
+
+		// Send out the updates and wait for all responses.
+		workers.blockingSubmit(updateMessages);
+	}
+
+	/**
+	 * Go through all the workers and count the number of times each variable is used.
+	 * We will need then when resolving consensus values.
+	 */
+	private int[] computeVariableWorkerCount() {
+		int[] variableWorkerCount = new int[allVariables.size()];
+		for (int i = 0; i < variableWorkerCount.length; i++) {
+			variableWorkerCount[i] = 0;
+		}
+
+		for (int workerId = 0; workerId < workerVariableMapping.length; workerId++) {
+			for (int remoteIndex = 0; remoteIndex < workerVariableMapping[workerId].length; remoteIndex++) {
+				variableWorkerCount[workerVariableMapping[workerId][remoteIndex]]++;
+			}
+		}
+
+		return variableWorkerCount;
+	}
 
 	// @Override
 	public void optimize() {
-      // TODO(eriq): Move variable maps out to another method.
+		double[] consensusValues = collectVariables();
 
-      double[] consensusValues = collectVariables();
+		// The number of workers that use a specific variable.
+		// We need this when updating the consensus value.
+		int[] variableWorkerCount = computeVariableWorkerCount();
 
-      updateWorkerConsensus(consensusValues);
+		// TODO(eriq): What happens when we have conflicting updates from worker about a variable?
 
-      /*
-		// Also sometimes called 'z'.
-		double[] consensusValues = new double[termStore.getNumGlobalVariables()];
-
-		// Starts up the computation threads
-		ADMMTask[] tasks = new ADMMTask[numThreads];
-		CyclicBarrier termUpdateCompleteBarrier = new CyclicBarrier(numThreads);
-		CyclicBarrier workerStartBarrier = new CyclicBarrier(numThreads + 1);
-		CyclicBarrier workerEndBarrier = new CyclicBarrier(numThreads + 1);
-		ThreadPool threadPool = new ThreadPool();
-		for (int i = 0; i < numThreads; i ++) {
-			tasks[i] = new ADMMTask(i, termUpdateCompleteBarrier, workerStartBarrier, workerEndBarrier, termStore, consensusValues);
-			threadPool.submit(tasks[i]);
-		}
-
-		// Performs inference.
+		// Perform inference.
 		double primalRes = Double.POSITIVE_INFINITY;
 		double dualRes = Double.POSITIVE_INFINITY;
-		double epsilonPrimal = 0;
-		double epsilonDual = 0;
-		double epsilonAbsTerm = Math.sqrt(termStore.getNumLocalVariables()) * epsilonAbs;
-		double AxNorm = 0.0, BzNorm = 0.0, AyNorm = 0.0;
-		boolean check = false;
+		double epsilonPrimal = 0.0;
+		double epsilonDual = 0.0;
+		double epsilonAbsTerm = Math.sqrt(numLocalVariables) * epsilonAbs;
+		double AxNorm = 0.0;
+		double BzNorm = 0.0;
+		double AyNorm = 0.0;
+		double lagrangePenalty = 0.0;
+		double augmentedLagrangePenalty = 0.0;
+
 		int iter = 1;
 
 		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iter < maxIter) {
-			check = iter % stopCheck == 0;
-			for (ADMMTask task : tasks) {
-				task.check = check;
+			primalRes = 0.0;
+			dualRes = 0.0;
+			AxNorm = 0.0;
+			BzNorm = 0.0;
+			AyNorm = 0.0;
+			lagrangePenalty = 0.0;
+			augmentedLagrangePenalty = 0.0;
+
+			// Update the consunsus values for each worker.
+			updateWorkerConsensus(consensusValues);
+
+			// Zero out the consensus values after we have sent them off to the workers.
+			// We will be setting new values based off the workers results.
+			for (int i = 0; i < consensusValues.length; i++) {
+				consensusValues[i] = 0;
 			}
 
-			try {
-				// Startup all the workers.
-				workerStartBarrier.await();
-
-				// Wait for all workers to report in after optimization round.
-				workerEndBarrier.await();
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			} catch (BrokenBarrierException e) {
-				throw new RuntimeException(e);
-			}
-
-			if (check) {
-				primalRes = 0.0;
-				dualRes = 0.0;
-				AxNorm = 0.0;
-				BzNorm = 0.0;
-				AyNorm = 0.0;
-				lagrangePenalty = 0.0;
-				augmentedLagrangePenalty = 0.0;
-
-				// Total values from threads
-				for (ADMMTask task : tasks) {
-					primalRes += task.primalResInc;
-					dualRes += task.dualResInc;
-					AxNorm += task.AxNormInc;
-					BzNorm += task.BzNormInc;
-					AyNorm += task.AyNormInc;
-					lagrangePenalty += task.lagrangePenalty;
-					augmentedLagrangePenalty += task.augmentedLagrangePenalty;
+			// Perform an iteration on each worker.
+			// Do not wait for all workers to respond.
+			// Get the results as they stream in and compute new values.
+			for (Response response : workers.submit(new IterationStart())) {
+				if (!(response.getMessage() instanceof IterationResult)) {
+					throw new RuntimeException("Unexpected response type: " + response.getMessage().getClass().getName());
 				}
 
-				primalRes = Math.sqrt(primalRes);
-				dualRes = stepSize * Math.sqrt(dualRes);
+				IterationResult result = (IterationResult)response.getMessage();
 
-				epsilonPrimal = epsilonAbsTerm + epsilonRel * Math.max(Math.sqrt(AxNorm), Math.sqrt(BzNorm));
-				epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(AyNorm);
+				primalRes += result.primalResInc;
+				dualRes += result.dualResInc;
+				AxNorm += result.AxNormInc;
+				BzNorm += result.BzNormInc;
+				AyNorm += result.AyNormInc;
+				lagrangePenalty += result.lagrangePenalty;
+				augmentedLagrangePenalty += result.augmentedLagrangePenalty;
+
+				// Update the consensus values with those from the worker.
+				int workerId = response.getWorker();
+				for (int remoteIndex = 0; remoteIndex < result.consensusValues.length; remoteIndex++) {
+					consensusValues[workerVariableMapping[workerId][remoteIndex]] += result.consensusValues[remoteIndex];
+				}
 			}
 
-			if (iter % (50 * stopCheck) == 0) {
+			// Average the consensus values from all the workers.
+			// (Since a single variable could be on multiple workers).
+			for (int i = 0; i < consensusValues.length; i++) {
+				consensusValues[i] /= variableWorkerCount[i];
+			}
+
+			primalRes = Math.sqrt(primalRes);
+			dualRes = stepSize * Math.sqrt(dualRes);
+
+			epsilonPrimal = epsilonAbsTerm + epsilonRel * Math.max(Math.sqrt(AxNorm), Math.sqrt(BzNorm));
+			epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(AyNorm);
+
+			if (iter % 50 == 0) {
 				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", new Object[] {iter, primalRes, dualRes});
 				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
 			}
@@ -305,171 +323,29 @@ public class ADMMReasonerMaster {
 			iter++;
 		}
 
-		// Notify threads the optimization is complete
-		for (ADMMTask task : tasks) {
-			task.done = true;
-		}
-
-		try {
-			// Wake up all threads so they can shutdown.
-			workerStartBarrier.await();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		} catch (BrokenBarrierException e) {
-			throw new RuntimeException(e);
-		}
-
-		threadPool.shutdownAndWait();
-
 		log.info("Optimization completed in {} iterations. " +
 				"Primal res.: {}, Dual res.: {}", new Object[] {iter, primalRes, dualRes});
 
-		// Updates variables
-		termStore.updateVariables(consensusValues);
-      */
+		// Update variables
+		log.info("Writing results to database.");
+		updateAtoms(consensusValues);
+	}
+
+	private void updateAtoms(double[] consensusValues) {
+		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
+			String key = atom.toString();
+
+			// We may not use all random variable atoms.
+			if (!allVariables.containsKey(key)) {
+				continue;
+			}
+
+			atom.setValue(consensusValues[allVariables.get(key).intValue()]);
+			atom.commitToDB();
+		}
 	}
 
 	// @Override
 	public void close() {
 	}
-
-   /*
-	private class ADMMTask implements Runnable {
-		// Set by the parent thread each round of optimization.
-		public volatile boolean done;
-		public volatile boolean check;
-
-		private final int termIndexStart, termIndexEnd;
-		private final int variableIndexStart, variableIndexEnd;
-		private final ADMMTermStore termStore;
-		private double[] consensusValues;
-
-		private final CyclicBarrier termUpdateCompleteBarrier;
-		private final CyclicBarrier workerStartBarrier;
-		private final CyclicBarrier workerEndBarrier;
-
-		public double primalResInc;
-		public double dualResInc;
-		public double AxNormInc;
-		public double BzNormInc;
-		public double AyNormInc;
-
-		protected double lagrangePenalty;
-		protected double augmentedLagrangePenalty;
-
-		public ADMMTask(int index, CyclicBarrier termUpdateCompleteBarrier,
-				CyclicBarrier workerStartBarrier, CyclicBarrier workerEndBarrier,
-				ADMMTermStore termStore, double[] consensusValues) {
-			this.termUpdateCompleteBarrier = termUpdateCompleteBarrier;
-			this.workerStartBarrier = workerStartBarrier;
-			this.workerEndBarrier = workerEndBarrier;
-			this.consensusValues = consensusValues;
-
-			this.termStore = termStore;
-			this.done = false;
-			this.check = false;
-
-			// Determine the section of the terms this thread will look at
-			int tIncrement = (int)(Math.ceil((double)termStore.size() / (double)numThreads));
-			this.termIndexStart = tIncrement * index;
-			this.termIndexEnd = Math.min(termIndexStart + tIncrement, termStore.size());
-
-			// Determine the section of the consensusValues vector this thread will look at.
-			int zIncrement = (int)(Math.ceil(consensusValues.length / numThreads));
-			this.variableIndexStart = zIncrement * index;
-			this.variableIndexEnd = Math.min(variableIndexStart + zIncrement, consensusValues.length);
-
-			primalResInc = 0.0;
-			dualResInc = 0.0;
-			AxNormInc = 0.0;
-			BzNormInc = 0.0;
-			AyNormInc = 0.0;
-			lagrangePenalty = 0.0;
-			augmentedLagrangePenalty = 0.0;
-		}
-
-		private void awaitUninterruptibly(CyclicBarrier b) {
-			try {
-				b.await();
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			} catch (BrokenBarrierException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-		@Override
-		public void run() {
-			int iter = 1;
-			while (true) {
-				awaitUninterruptibly(workerStartBarrier);
-				if (done) {
-					break;
-				}
-
-				// Solves each local function.
-				for (int i = termIndexStart; i < termIndexEnd; i++) {
-					termStore.get(i).updateLagrange(stepSize, consensusValues);
-					termStore.get(i).minimize(stepSize, consensusValues);
-				}
-
-				// Ensures all threads are at the same point
-				awaitUninterruptibly(termUpdateCompleteBarrier);
-
-				// TODO(eriq): Be careful here when refactoring. Make sure there are not used between checks,
-				// when they have their old values..
-				if (check) {
-					primalResInc = 0.0;
-					dualResInc = 0.0;
-					AxNormInc = 0.0;
-					BzNormInc = 0.0;
-					AyNormInc = 0.0;
-					lagrangePenalty = 0.0;
-					augmentedLagrangePenalty = 0.0;
-				}
-
-				for (int i = variableIndexStart; i < variableIndexEnd; i++) {
-					double total = 0.0;
-					// First pass computes newConsensusValue and dual residual fom all local copies.
-					for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
-						total += localVariable.getValue() + localVariable.getLagrange() / stepSize;
-
-						if (check) {
-							AxNormInc += localVariable.getValue() * localVariable.getValue();
-							AyNormInc += localVariable.getLagrange() * localVariable.getLagrange();
-						}
-					}
-
-					double newConsensusValue = total / termStore.getLocalVariables(i).size();
-					if (newConsensusValue < LOWER_BOUND) {
-						newConsensusValue = LOWER_BOUND;
-					} else if (newConsensusValue > UPPER_BOUND) {
-						newConsensusValue = UPPER_BOUND;
-					}
-
-					if (check) {
-						double diff = consensusValues[i] - newConsensusValue;
-						// Residual is diff^2 * number of local variables mapped to consensusValues element.
-						dualResInc += diff * diff * termStore.getLocalVariables(i).size();
-						BzNormInc += newConsensusValue * newConsensusValue * termStore.getLocalVariables(i).size();
-					}
-					consensusValues[i] = newConsensusValue;
-
-					// Second pass computes primal residuals
-					if (check) {
-						for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
-							double diff = localVariable.getValue() - newConsensusValue;
-							primalResInc += diff * diff;
-							// computes Lagrangian penalties
-							lagrangePenalty += localVariable.getLagrange() * (localVariable.getValue() - consensusValues[i]);
-							augmentedLagrangePenalty += 0.5 * stepSize * Math.pow(localVariable.getValue() - consensusValues[i], 2);
-						}
-					}
-				}
-
-				awaitUninterruptibly(workerEndBarrier);
-			}
-		}
-	}
-   */
 }

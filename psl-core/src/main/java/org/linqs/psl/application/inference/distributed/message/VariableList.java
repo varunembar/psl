@@ -18,57 +18,87 @@
 package org.linqs.psl.application.inference.distributed.message;
 
 import org.linqs.psl.application.inference.distributed.NetUtils;
+import org.linqs.psl.reasoner.function.AtomFunctionVariable;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
+// TODO(eriq): I do not like using the full string represetation, but the hash is not good enough.
 /**
  * A response containing a list of variables represented by the
- * hash of their associated ground atom.
+ * string represetation of their associated ground atom as well as the number of local variables
+ * present on the worker.
  */
 public class VariableList extends Message {
-	private int[] variables;
+	private String[] variables;
+	private int numLocalVariables;
 
 	public VariableList() {
 	}
 
-	public VariableList(int size) {
-		variables = new int[size];
+   /**
+    * Note that we are storing the string representation of the atom associated with a variable.
+    */
+	public VariableList(AtomFunctionVariable[] rawVariables, int numLocalVariables) {
+      this.numLocalVariables = numLocalVariables;
+
+		variables = new String[rawVariables.length];
+      for (int i = 0; i < rawVariables.length; i++) {
+         variables[i] = rawVariables[i].getAtom().toString();
+      }
 	}
 
-   public int size() {
-      return variables.length;
-   }
+	public int size() {
+		return variables.length;
+	}
 
-   public int getVariable(int i) {
-      return variables[i];
-   }
+	public String getVariable(int i) {
+		return variables[i];
+	}
+
+	public int getNumLocalVariables() {
+		return numLocalVariables;
+	}
 
 	@Override
 	protected byte[] serializePayload() {
-      ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE * (variables.length + 1));
-      buffer.clear();
-      buffer.putInt(variables.length);
-
-      for (int variable : variables) {
-         buffer.putInt(variable);
+      List<ByteBuffer> stringBuffers = new ArrayList<ByteBuffer>();
+      int totalStringSize = 0;
+      for (String variable : variables) {
+         ByteBuffer stringBuffer = Message.encodeString(variable);
+         stringBuffers.add(stringBuffer);
+         totalStringSize += stringBuffer.limit();
       }
-      buffer.flip();
+
+		// The number of strings, the number of local vairbales, and all the strings.
+		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE * 2 + totalStringSize);
+		buffer.clear();
+		buffer.putInt(numLocalVariables);
+		buffer.putInt(variables.length);
+
+
+		for (ByteBuffer stringBuffer : stringBuffers) {
+			buffer.put(stringBuffer);
+		}
+		buffer.flip();
 
 		return buffer.array();
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
-      int size = payload.getInt();
-      variables = new int[size];
+		numLocalVariables = payload.getInt();
+		int size = payload.getInt();
 
-      for (int i = 0; i < size; i++) {
-         variables[i] = payload.getInt();
-      }
+		variables = new String[size];
+		for (int i = 0; i < size; i++) {
+			variables[i] = Message.decodeString(payload);
+		}
 	}
 
 	@Override
 	public String toString() {
-		return "VariableList: " + variables.length;
+		return "VariableList: (" + variables.length + ", " + numLocalVariables + ")";
 	}
 }

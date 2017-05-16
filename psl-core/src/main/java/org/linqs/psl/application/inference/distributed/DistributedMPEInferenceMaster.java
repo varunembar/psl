@@ -105,15 +105,6 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		reasoner.optimize();
 		log.info("Inference complete. Writing results to Database.");
 
-		/* TODO(eriq)
-		// Commits the RandomVariableAtoms back to the Database.
-		int count = 0;
-		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
-			atom.commitToDB();
-			count++;
-		}
-		*/
-
 		// TODO(eriq): We need to get these from the workers.
 		/*
 		double incompatibility = GroundRules.getTotalWeightedIncompatibility(groundRuleStore.getCompatibilityRules());
@@ -133,21 +124,11 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		WorkerPool workers = new WorkerPool(workerAddresses);
 		List<Response> responses = workers.blockingSubmit(new Initialize());
 
-		// TEST
-		for (Response response : responses) {
-			System.out.println(response);
-		}
-
 		return workers;
 	}
 
 	private void closeWorkers(WorkerPool workers) {
 		List<Response> responses = workers.blockingSubmit(new Close());
-
-		// TEST
-		for (Response response : responses) {
-			System.out.println(response);
-		}
 
 		workers.close();
 		workers = null;

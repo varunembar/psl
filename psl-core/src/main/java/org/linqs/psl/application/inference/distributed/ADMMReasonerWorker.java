@@ -18,6 +18,7 @@
 // TODO(eriq): Change package?
 package org.linqs.psl.application.inference.distributed;
 
+// TODO(eriq): Imports
 import org.linqs.psl.config.ConfigBundle;
 import org.linqs.psl.config.ConfigManager;
 import org.linqs.psl.model.rule.GroundRule;
@@ -35,6 +36,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+//
+
+import org.linqs.psl.application.inference.distributed.message.IterationResult;
+import org.linqs.psl.reasoner.admm.term.ADMMObjectiveTerm;
+
 
 /**
  * Worker for distributed ADMM.
@@ -50,16 +56,6 @@ public class ADMMReasonerWorker {
 	 */
 	public static final String CONFIG_PREFIX = "admmreasoner";
 
-	// TODO(eriq): Check which options we actually need.
-
-	/**
-	 * Key for int property for the maximum number of iterations of ADMM to
-	 * perform in a round of inference
-	 */
-	public static final String MAX_ITER_KEY = CONFIG_PREFIX + ".maxiterations";
-	/** Default value for MAX_ITER_KEY property */
-	public static final int MAX_ITER_DEFAULT = 25000;
-
 	/**
 	 * Key for non-negative double property. Controls step size. Higher
 	 * values result in larger steps.
@@ -69,34 +65,10 @@ public class ADMMReasonerWorker {
 	public static final double STEP_SIZE_DEFAULT = 1;
 
 	/**
-	 * Key for positive double property. Absolute error component of stopping
-	 * criteria.
-	 */
-	public static final String EPSILON_ABS_KEY = CONFIG_PREFIX + ".epsilonabs";
-	/** Default value for EPSILON_ABS_KEY property */
-	public static final double EPSILON_ABS_DEFAULT = 1e-5;
-
-	/**
-	 * Key for positive double property. Relative error component of stopping
-	 * criteria.
-	 */
-	public static final String EPSILON_REL_KEY = CONFIG_PREFIX + ".epsilonrel";
-	/** Default value for EPSILON_ABS_KEY property */
-	public static final double EPSILON_REL_DEFAULT = 1e-3;
-
-	/**
-	 * Key for positive integer. The number of ADMM iterations after which the
-	 * termination criteria will be checked.
-	 */
-	public static final String STOP_CHECK_KEY = CONFIG_PREFIX + ".stopcheck";
-	/** Default value for STOP_CHECK_KEY property */
-	public static final int STOP_CHECK_DEFAULT = 1;
-
-	/**
 	 * Key for positive integer. Number of threads to run the optimization in.
 	 */
 	public static final String NUM_THREADS_KEY = CONFIG_PREFIX + ".numthreads";
-	/** Default value for STOP_CHECK_KEY property
+	/** Default value for NUM_THREADS_KEY property
 	 * (by default uses the number of processors in the system) */
 	public static final int NUM_THREADS_DEFAULT = Runtime.getRuntime().availableProcessors();
 
@@ -113,30 +85,8 @@ public class ADMMReasonerWorker {
 	 */
 	private final int numThreads;
 
-	private double epsilonRel;
-	private double epsilonAbs;
-
-	private final int stopCheck;
-
-	private double lagrangePenalty;
-	private double augmentedLagrangePenalty;
-
-	private int maxIter;
-
 	public ADMMReasonerWorker(ConfigBundle config) {
-		maxIter = config.getInt(MAX_ITER_KEY, MAX_ITER_DEFAULT);
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
-		stopCheck = config.getInt(STOP_CHECK_KEY, STOP_CHECK_DEFAULT);
-
-		epsilonAbs = config.getDouble(EPSILON_ABS_KEY, EPSILON_ABS_DEFAULT);
-		if (epsilonAbs <= 0) {
-			throw new IllegalArgumentException("Property " + EPSILON_ABS_KEY + " must be positive.");
-		}
-
-		epsilonRel = config.getDouble(EPSILON_REL_KEY, EPSILON_REL_DEFAULT);
-		if (epsilonRel <= 0) {
-			throw new IllegalArgumentException("Property " + EPSILON_REL_KEY + " must be positive.");
-		}
 
 		// Multithreading
 		numThreads = config.getInt(NUM_THREADS_KEY, NUM_THREADS_DEFAULT);
@@ -145,258 +95,63 @@ public class ADMMReasonerWorker {
 		}
 	}
 
-	// @Override
-	public void optimize(TermStore baseTermStore) {
-      /*
-		if (!(baseTermStore instanceof ADMMTermStore)) {
-			throw new IllegalArgumentException("ADMMReasoner requires an ADMMTermStore");
-		}
-		ADMMTermStore termStore = (ADMMTermStore)baseTermStore;
+	// TODO(eriq): We need to multithread this.
+	public IterationResult iteration(ADMMTermStore termStore, double[] consensusValues) {
+		double primalResInc = 0.0;
+		double dualResInc = 0.0;
+		double AxNormInc = 0.0;
+		double BzNormInc = 0.0;
+		double AyNormInc = 0.0;
+		double lagrangePenalty = 0.0;
+		double augmentedLagrangePenalty = 0.0;
 
-		log.debug("Performing optimization with {} variables and {} terms.", termStore.getNumGlobalVariables(), termStore.size());
-
-		// Also sometimes called 'z'.
-		double[] consensusValues = new double[termStore.getNumGlobalVariables()];
-
-		// Starts up the computation threads
-		ADMMTask[] tasks = new ADMMTask[numThreads];
-		CyclicBarrier termUpdateCompleteBarrier = new CyclicBarrier(numThreads);
-		CyclicBarrier workerStartBarrier = new CyclicBarrier(numThreads + 1);
-		CyclicBarrier workerEndBarrier = new CyclicBarrier(numThreads + 1);
-		ThreadPool threadPool = new ThreadPool();
-		for (int i = 0; i < numThreads; i ++) {
-			tasks[i] = new ADMMTask(i, termUpdateCompleteBarrier, workerStartBarrier, workerEndBarrier, termStore, consensusValues);
-			threadPool.submit(tasks[i]);
+		// Solve each local function.
+		for (ADMMObjectiveTerm term : termStore) {
+			term.updateLagrange(stepSize, consensusValues);
+			term.minimize(stepSize, consensusValues);
 		}
 
-		// Performs inference
-		double primalRes = Double.POSITIVE_INFINITY;
-		double dualRes = Double.POSITIVE_INFINITY;
-		double epsilonPrimal = 0;
-		double epsilonDual = 0;
-		double epsilonAbsTerm = Math.sqrt(termStore.getNumLocalVariables()) * epsilonAbs;
-		double AxNorm = 0.0, BzNorm = 0.0, AyNorm = 0.0;
-		boolean check = false;
-		int iter = 1;
+		// TODO(eriq): Non-distributed ADMM can go multiple iterations without checking. Can we?
 
-		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iter < maxIter) {
-			check = iter % stopCheck == 0;
-			for (ADMMTask task : tasks) {
-				task.check = check;
+		for (int i = 0; i < termStore.getNumGlobalVariables(); i++) {
+			double total = 0.0;
+
+			// First pass computes newConsensusValue and dual residual fom all local copies.
+			for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
+				total += localVariable.getValue() + localVariable.getLagrange() / stepSize;
+
+				AxNormInc += localVariable.getValue() * localVariable.getValue();
+				AyNormInc += localVariable.getLagrange() * localVariable.getLagrange();
 			}
 
-			try {
-				// Startup all the workers.
-				workerStartBarrier.await();
-
-				// Wait for all workers to report in after optimization round.
-				workerEndBarrier.await();
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			} catch (BrokenBarrierException e) {
-				throw new RuntimeException(e);
+			double newConsensusValue = total / termStore.getLocalVariables(i).size();
+			if (newConsensusValue < LOWER_BOUND) {
+				newConsensusValue = LOWER_BOUND;
+			} else if (newConsensusValue > UPPER_BOUND) {
+				newConsensusValue = UPPER_BOUND;
 			}
 
-			if (check) {
-				primalRes = 0.0;
-				dualRes = 0.0;
-				AxNorm = 0.0;
-				BzNorm = 0.0;
-				AyNorm = 0.0;
-				lagrangePenalty = 0.0;
-				augmentedLagrangePenalty = 0.0;
+			double diff = consensusValues[i] - newConsensusValue;
+			// Residual is diff^2 * number of local variables mapped to consensusValues element.
+			dualResInc += diff * diff * termStore.getLocalVariables(i).size();
+			BzNormInc += newConsensusValue * newConsensusValue * termStore.getLocalVariables(i).size();
 
-				// Total values from threads
-				for (ADMMTask task : tasks) {
-					primalRes += task.primalResInc;
-					dualRes += task.dualResInc;
-					AxNorm += task.AxNormInc;
-					BzNorm += task.BzNormInc;
-					AyNorm += task.AyNormInc;
-					lagrangePenalty += task.lagrangePenalty;
-					augmentedLagrangePenalty += task.augmentedLagrangePenalty;
-				}
+			consensusValues[i] = newConsensusValue;
 
-				primalRes = Math.sqrt(primalRes);
-				dualRes = stepSize * Math.sqrt(dualRes);
+			// Second pass computes primal residuals.
+			for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
+				diff = localVariable.getValue() - newConsensusValue;
+				primalResInc += diff * diff;
 
-				epsilonPrimal = epsilonAbsTerm + epsilonRel * Math.max(Math.sqrt(AxNorm), Math.sqrt(BzNorm));
-				epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(AyNorm);
+				// Compute Lagrangian penalties
+				lagrangePenalty += localVariable.getLagrange() * (localVariable.getValue() - consensusValues[i]);
+				augmentedLagrangePenalty += 0.5 * stepSize * Math.pow(localVariable.getValue() - consensusValues[i], 2);
 			}
-
-			if (iter % (50 * stopCheck) == 0) {
-				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", new Object[] {iter, primalRes, dualRes});
-				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
-			}
-
-			iter++;
 		}
 
-		// Notify threads the optimization is complete
-		for (ADMMTask task : tasks) {
-			task.done = true;
-		}
-
-		try {
-			// Wake up all threads so they can shutdown.
-			workerStartBarrier.await();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		} catch (BrokenBarrierException e) {
-			throw new RuntimeException(e);
-		}
-
-		threadPool.shutdownAndWait();
-
-		log.info("Optimization completed in {} iterations. " +
-				"Primal res.: {}, Dual res.: {}", new Object[] {iter, primalRes, dualRes});
-
-		// Updates variables
-		termStore.updateVariables(consensusValues);
-      */
+		return new IterationResult(primalResInc, dualResInc,
+				AxNormInc, BzNormInc, AyNormInc,
+				lagrangePenalty, augmentedLagrangePenalty,
+				consensusValues);
 	}
-
-	// @Override
-	public void close() {
-	}
-
-   /*
-	private class ADMMTask implements Runnable {
-		// Set by the parent thread each round of optimization.
-		public volatile boolean done;
-		public volatile boolean check;
-
-		private final int termIndexStart, termIndexEnd;
-		private final int variableIndexStart, variableIndexEnd;
-		private final ADMMTermStore termStore;
-		private double[] consensusValues;
-
-		private final CyclicBarrier termUpdateCompleteBarrier;
-		private final CyclicBarrier workerStartBarrier;
-		private final CyclicBarrier workerEndBarrier;
-
-		public double primalResInc;
-		public double dualResInc;
-		public double AxNormInc;
-		public double BzNormInc;
-		public double AyNormInc;
-
-		protected double lagrangePenalty;
-		protected double augmentedLagrangePenalty;
-
-		public ADMMTask(int index, CyclicBarrier termUpdateCompleteBarrier,
-				CyclicBarrier workerStartBarrier, CyclicBarrier workerEndBarrier,
-				ADMMTermStore termStore, double[] consensusValues) {
-			this.termUpdateCompleteBarrier = termUpdateCompleteBarrier;
-			this.workerStartBarrier = workerStartBarrier;
-			this.workerEndBarrier = workerEndBarrier;
-			this.consensusValues = consensusValues;
-
-			this.termStore = termStore;
-			this.done = false;
-			this.check = false;
-
-			// Determine the section of the terms this thread will look at
-			int tIncrement = (int)(Math.ceil((double)termStore.size() / (double)numThreads));
-			this.termIndexStart = tIncrement * index;
-			this.termIndexEnd = Math.min(termIndexStart + tIncrement, termStore.size());
-
-			// Determine the section of the consensusValues vector this thread will look at.
-			int zIncrement = (int)(Math.ceil(consensusValues.length / numThreads));
-			this.variableIndexStart = zIncrement * index;
-			this.variableIndexEnd = Math.min(variableIndexStart + zIncrement, consensusValues.length);
-
-			primalResInc = 0.0;
-			dualResInc = 0.0;
-			AxNormInc = 0.0;
-			BzNormInc = 0.0;
-			AyNormInc = 0.0;
-			lagrangePenalty = 0.0;
-			augmentedLagrangePenalty = 0.0;
-		}
-
-		private void awaitUninterruptibly(CyclicBarrier b) {
-			try {
-				b.await();
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			} catch (BrokenBarrierException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-		@Override
-		public void run() {
-			int iter = 1;
-			while (true) {
-				awaitUninterruptibly(workerStartBarrier);
-				if (done) {
-					break;
-				}
-
-				// Solves each local function.
-				for (int i = termIndexStart; i < termIndexEnd; i++) {
-					termStore.get(i).updateLagrange(stepSize, consensusValues);
-					termStore.get(i).minimize(stepSize, consensusValues);
-				}
-
-				// Ensures all threads are at the same point
-				awaitUninterruptibly(termUpdateCompleteBarrier);
-
-				// TODO(eriq): Be careful here when refactoring. Make sure there are not used between checks,
-				// when they have their old values..
-				if (check) {
-					primalResInc = 0.0;
-					dualResInc = 0.0;
-					AxNormInc = 0.0;
-					BzNormInc = 0.0;
-					AyNormInc = 0.0;
-					lagrangePenalty = 0.0;
-					augmentedLagrangePenalty = 0.0;
-				}
-
-				for (int i = variableIndexStart; i < variableIndexEnd; i++) {
-					double total = 0.0;
-					// First pass computes newConsensusValue and dual residual fom all local copies.
-					for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
-						total += localVariable.getValue() + localVariable.getLagrange() / stepSize;
-
-						if (check) {
-							AxNormInc += localVariable.getValue() * localVariable.getValue();
-							AyNormInc += localVariable.getLagrange() * localVariable.getLagrange();
-						}
-					}
-
-					double newConsensusValue = total / termStore.getLocalVariables(i).size();
-					if (newConsensusValue < LOWER_BOUND) {
-						newConsensusValue = LOWER_BOUND;
-					} else if (newConsensusValue > UPPER_BOUND) {
-						newConsensusValue = UPPER_BOUND;
-					}
-
-					if (check) {
-						double diff = consensusValues[i] - newConsensusValue;
-						// Residual is diff^2 * number of local variables mapped to consensusValues element.
-						dualResInc += diff * diff * termStore.getLocalVariables(i).size();
-						BzNormInc += newConsensusValue * newConsensusValue * termStore.getLocalVariables(i).size();
-					}
-					consensusValues[i] = newConsensusValue;
-
-					// Second pass computes primal residuals.
-					if (check) {
-						for (LocalVariable localVariable : termStore.getLocalVariables(i)) {
-							double diff = localVariable.getValue() - newConsensusValue;
-							primalResInc += diff * diff;
-							// computes Lagrangian penalties
-							lagrangePenalty += localVariable.getLagrange() * (localVariable.getValue() - consensusValues[i]);
-							augmentedLagrangePenalty += 0.5 * stepSize * Math.pow(localVariable.getValue() - consensusValues[i], 2);
-						}
-					}
-				}
-
-				awaitUninterruptibly(workerEndBarrier);
-			}
-		}
-	}
-   */
 }

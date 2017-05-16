@@ -22,6 +22,7 @@ import org.linqs.psl.application.inference.distributed.message.Close;
 import org.linqs.psl.application.inference.distributed.message.ConsensusUpdate;
 import org.linqs.psl.application.inference.distributed.message.InitADMM;
 import org.linqs.psl.application.inference.distributed.message.Initialize;
+import org.linqs.psl.application.inference.distributed.message.IterationStart;
 import org.linqs.psl.application.inference.distributed.message.Message;
 import org.linqs.psl.application.inference.distributed.message.VariableList;
 
@@ -49,6 +50,7 @@ import org.linqs.psl.reasoner.admm.ADMMReasoner;
 import org.linqs.psl.reasoner.admm.ADMMReasonerFactory;
 import org.linqs.psl.reasoner.admm.term.ADMMTermStore;
 import org.linqs.psl.reasoner.admm.term.ADMMTermGenerator;
+import org.linqs.psl.reasoner.function.AtomFunctionVariable;
 import org.linqs.psl.reasoner.term.TermGenerator;
 import org.linqs.psl.reasoner.term.TermStore;
 import org.slf4j.Logger;
@@ -92,10 +94,10 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 	protected ServerSocket server;
 
-	protected Reasoner reasoner;
+	protected ADMMReasonerWorker reasoner;
 	protected PersistedAtomManager atomManager;
 	protected GroundRuleStore groundRuleStore;
-	protected TermStore termStore;
+	protected ADMMTermStore termStore;
 
 	// TODO(eriq): Kids through config?
 	// TODO(eriq): Get model and db over wire?
@@ -110,7 +112,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			throw new RuntimeException("Failed to create socket for listening.", ex);
 		}
 
-		reasoner = new ADMMReasoner(config);
+		reasoner = new ADMMReasonerWorker(config);
 		termStore = new ADMMTermStore(config);
 		groundRuleStore = new MemoryGroundRuleStore();
 	}
@@ -136,36 +138,27 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 		ByteBuffer buffer = null;
 		boolean done = false;
+      double[] consensusValues = null;
 
 		// Accept messages from the master until it closes.
 		while (!done) {
-			// TEST
-			System.out.println("Waiting for messages from master");
+			log.info("Waiting for messages from master");
 
 			buffer = NetUtils.readMessage(inStream, buffer);
 			Message message = Message.deserialize(buffer);
-         Message response = new Ack(true);
+			Message response = new Ack(true);
 
-			// TEST
-			System.out.println("Got message: " + message);
+			log.debug("Recieved message from worker: " + message);
 
 			if (message instanceof Initialize) {
-				// TEST
-				System.out.println("Init");
-
 				initialize();
 			} else if (message instanceof InitADMM) {
-				// TEST
-				System.out.println("InitADMM");
-            // TEST
-            response = new VariableList(5);
+				response = collectVariables();
 			} else if (message instanceof ConsensusUpdate) {
-				// TEST
-				System.out.println("ConsensusUpdate");
+            consensusValues = ((ConsensusUpdate)message).getValues();
+			} else if (message instanceof IterationStart) {
+				response = reasoner.iteration(termStore, consensusValues);
 			} else if (message instanceof Close) {
-				// TEST
-				System.out.println("Close");
-
 				done = true;
 			} else {
 				throw new IllegalStateException("Unknown message type: " + message.getClass().getName());
@@ -181,6 +174,11 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		} catch (IOException ex) {
 			log.warn("Error while closing master connection... ignoring.", ex);
 		}
+	}
+
+	private VariableList collectVariables() {
+		AtomFunctionVariable[] variables = termStore.getGlobalVariables();
+      return new VariableList(variables, termStore.getNumLocalVariables());
 	}
 
 	/**

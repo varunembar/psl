@@ -36,36 +36,39 @@ public class ConsensusUpdate extends Message {
 		consensusValues = new double[size];
 	}
 
-   public double getValue(int i) {
-      return consensusValues[i];
-   }
+	public double[] getValues() {
+		return consensusValues;
+	}
 
-   public void setValue(int index, double value) {
-      consensusValues[index] = value;
-   }
+	public double getValue(int i) {
+		return consensusValues[i];
+	}
+
+	public void setValue(int index, double value) {
+		consensusValues[index] = value;
+	}
 
 	@Override
 	protected byte[] serializePayload() {
-      ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE  + NetUtils.DOUBLE_SIZE * consensusValues.length);
-      buffer.clear();
-      buffer.putInt(consensusValues.length);
+		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE  + NetUtils.DOUBLE_SIZE * consensusValues.length);
+		buffer.clear();
+		buffer.putInt(consensusValues.length);
 
-      for (double value : consensusValues) {
-         buffer.putDouble(value);
-      }
-      buffer.flip();
+		for (double value : consensusValues) {
+			buffer.putDouble(value);
+		}
+		buffer.flip();
 
 		return buffer.array();
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
-      int size = payload.getInt();
-      consensusValues = new double[size];
-
-      for (int i = 0; i < size; i++) {
-         consensusValues[i] = payload.getDouble();
-      }
+		int size = payload.getInt();
+		consensusValues = new double[size];
+		for (int i = 0; i < size; i++) {
+			consensusValues[i] = payload.getDouble();
+		}
 	}
 
 	@Override
