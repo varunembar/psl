@@ -121,10 +121,19 @@ public class NetUtils {
 		}
 		buffer.clear();
 
-		// TODO(eriq): Could we read short?
+		// TODO(eriq): Better short read handling.
 		// Read the full payload.
 		try {
-			socket.read(buffer);
+         bytesRead = 0;
+         while (bytesRead < payloadSize) {
+			   int currentRead = socket.read(buffer);
+            bytesRead += currentRead;
+
+            if (currentRead== -1) {
+               // TODO(eriq): Better
+               return null;
+            }
+         }
 
 			// TEST
 			log.debug("Recieved message (size: {}) from {}", payloadSize + sizeBuffer.capacity(), socket.getRemoteAddress());
@@ -164,7 +173,11 @@ public class NetUtils {
 		// TODO(eriq): Could we read short?
 		// Read the full payload.
 		try {
-			inStream.read(buffer.array(), 0, payloadSize);
+         bytesRead = 0;
+         while (bytesRead < payloadSize) {
+			   int currentRead = inStream.read(buffer.array(), bytesRead, payloadSize - bytesRead);
+            bytesRead += currentRead;
+         }
          buffer.limit(payloadSize);
 
 			// TEST
