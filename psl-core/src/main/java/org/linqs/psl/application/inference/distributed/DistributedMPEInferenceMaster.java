@@ -19,6 +19,7 @@ package org.linqs.psl.application.inference.distributed;
 
 import org.linqs.psl.application.inference.distributed.message.Close;
 import org.linqs.psl.application.inference.distributed.message.Initialize;
+import org.linqs.psl.application.inference.distributed.message.LoadData;
 import org.linqs.psl.application.inference.distributed.message.Message;
 
 // TODO(eriq): Clean imports
@@ -31,8 +32,9 @@ import org.linqs.psl.application.util.Grounding;
 import org.linqs.psl.config.ConfigBundle;
 import org.linqs.psl.config.ConfigManager;
 import org.linqs.psl.config.Factory;
+import org.linqs.psl.database.DataStore;
 import org.linqs.psl.database.Database;
-import org.linqs.psl.database.DatabasePopulator;
+import org.linqs.psl.database.Partition;
 import org.linqs.psl.model.Model;
 import org.linqs.psl.model.atom.GroundAtom;
 import org.linqs.psl.model.atom.ObservedAtom;
@@ -46,6 +48,7 @@ import org.linqs.psl.reasoner.term.TermStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -94,10 +97,25 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		atomManager = new PersistedAtomManager(db);
 	}
 
-	public FullInferenceResult mpeInference() {
+   // TODO(eriq): Data format needs work: [worker][row][col]
+	public FullInferenceResult mpeInference(String partition, String predicate, String[][][] partitionData) {
+      assert(partitionData == null || partitionData.length == workerAddresses.size());
+
 		log.debug("Initializing Workers");
 		WorkerPool workers = initWorkers();
 		log.debug("Workers initialized");
+
+      if (partitionData != null) {
+         log.debug("Sending Data To Workers");
+
+         List<Message> loadDataMessages = new ArrayList<Message>();
+         for (String[][] data : partitionData) {
+            loadDataMessages.add(new LoadData(partition, predicate, data));
+         }
+         workers.blockingSubmit(loadDataMessages);
+
+         log.debug("Data Sent To Workers");
+      }
 
       ADMMReasonerMaster reasoner = new ADMMReasonerMaster(config, workers, atomManager);
 
