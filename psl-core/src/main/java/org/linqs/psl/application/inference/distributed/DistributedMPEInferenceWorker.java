@@ -83,7 +83,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	 * The port that workers listen on.
 	 */
 	public static final String PORT_KEY = CONFIG_PREFIX + ".port";
-	public static final int PORT = 1234;
+	public static final int PORT = 12345;
 
 	// TODO(eriq): For now, only one reasoner is allowed.
 
@@ -112,7 +112,6 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			throw new RuntimeException("Failed to create socket for listening.", ex);
 		}
 
-		reasoner = new ADMMReasonerWorker(config);
 		termStore = new ADMMTermStore(config);
 		groundRuleStore = new MemoryGroundRuleStore();
 	}
@@ -138,7 +137,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 		ByteBuffer buffer = null;
 		boolean done = false;
-      double[] consensusValues = null;
+		double[] consensusValues = null;
 
 		// Accept messages from the master until it closes.
 		while (!done) {
@@ -148,14 +147,15 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			Message message = Message.deserialize(buffer);
 			Message response = new Ack(true);
 
-			log.debug("Recieved message from worker: " + message);
+			log.debug("Recieved message from master: " + message);
 
 			if (message instanceof Initialize) {
 				initialize();
 			} else if (message instanceof InitADMM) {
+				reasoner = new ADMMReasonerWorker(config, termStore);
 				response = collectVariables();
 			} else if (message instanceof ConsensusUpdate) {
-            consensusValues = ((ConsensusUpdate)message).getValues();
+				consensusValues = ((ConsensusUpdate)message).getValues();
 			} else if (message instanceof IterationStart) {
 				response = reasoner.iteration(termStore, consensusValues);
 			} else if (message instanceof Close) {
@@ -174,11 +174,13 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		} catch (IOException ex) {
 			log.warn("Error while closing master connection... ignoring.", ex);
 		}
+
+		close();
 	}
 
 	private VariableList collectVariables() {
 		AtomFunctionVariable[] variables = termStore.getGlobalVariables();
-      return new VariableList(variables, termStore.getNumLocalVariables());
+		return new VariableList(variables, termStore.getNumLocalVariables());
 	}
 
 	/**
@@ -206,6 +208,11 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		model = null;
 		db = null;
 		config = null;
+
+		if (reasoner != null) {
+			reasoner.close();
+			reasoner = null;
+		}
 	}
 
 }

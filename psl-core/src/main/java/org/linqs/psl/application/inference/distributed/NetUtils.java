@@ -100,11 +100,17 @@ public class NetUtils {
 		sizeBuffer.clear();
 
 		// Read the size
+      int bytesRead;
 		try {
-			socket.read(sizeBuffer);
+         bytesRead = socket.read(sizeBuffer);
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message size.", ex);
 		}
+
+      // connection was closed.
+      if (bytesRead == -1) {
+         return null;
+      }
 
 		sizeBuffer.flip();
 		int payloadSize = sizeBuffer.getInt();
@@ -134,11 +140,17 @@ public class NetUtils {
 		sizeBuffer.clear();
 
 		// Read the size
+      int bytesRead;
 		try {
-			inStream.read(sizeBuffer.array());
+         bytesRead = inStream.read(sizeBuffer.array());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message size.", ex);
 		}
+
+      // connection was closed.
+      if (bytesRead == -1) {
+         return null;
+      }
 
 		// Note that we do not need to flip the buffer since we are reading directly into the byte array.
 		int payloadSize = sizeBuffer.getInt();

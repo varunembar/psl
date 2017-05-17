@@ -44,7 +44,7 @@ import java.util.Queue;
 // TODO(eriq): All messages will be prefixed with the size of the payload (not including the size).
 public class WorkerPool {
 	// TODO(eriq): config?
-	private static final int DEFAULT_PORT = 1234;
+	private static final int DEFAULT_PORT = 12345;
 	private static final int DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024;
 
 	private static final Logger log = LoggerFactory.getLogger(WorkerPool.class);
@@ -202,7 +202,14 @@ public class WorkerPool {
 			}
 
 			if (!responseQueue.isEmpty()) {
-				return responseQueue.remove();
+            Response response = responseQueue.remove();
+
+            // If we have recieved all responses, prepare for the next request.
+            if (responseQueue.isEmpty() && numResponses == workers.size()) {
+               activeIterator = null;
+            }
+
+				return response;
 			}
 
 			ByteBuffer payloadBuffer = null;
@@ -210,19 +217,42 @@ public class WorkerPool {
 			try {
 				boolean done = false;
 				while (true) {
-					readSelector.select();
-					for (SelectionKey selectedKey : readSelector.selectedKeys()) {
+					if (readSelector.select() <= 0) {
+                  continue;
+               }
+
+               // We need the iterator because we need to remove our own keys.
+               Iterator<SelectionKey> keyIterator = readSelector.selectedKeys().iterator();
+               while (keyIterator.hasNext()) {
+                  SelectionKey selectedKey = keyIterator.next();
+
 						// We only are interested in reading, so it better be ready.
-						if (!selectedKey.isReadable()) {
+						if (!selectedKey.isValid() || !selectedKey.isReadable()) {
+                     keyIterator.remove();
 							continue;
 						}
 
 						int workerIndex = ((Integer)selectedKey.attachment()).intValue();
+
+                  // Make sure the connection is open.
+                  if (!workers.get(workerIndex).isOpen() || !workers.get(workerIndex).isConnected()) {
+                     keyIterator.remove();
+							continue;
+						}
+
 						payloadBuffer = NetUtils.readMessage(workers.get(workerIndex), payloadBuffer);
+
+                  // TODO(eriq): Manage closed connections better. Select will constantly say that dead connections are ready.
+                  // Connection was closed, read is not valid.
+                  if (payloadBuffer == null) {
+                     keyIterator.remove();
+                     continue;
+                  }
 
 						// Make sure we have not heard from this worker before.
 						if (recievedResponses[workerIndex]) {
 							log.warn("Recieved multiple responses from a worker.");
+                     keyIterator.remove();
 							continue;
 						}
 
@@ -231,6 +261,7 @@ public class WorkerPool {
 						numResponses++;
 
 						done = true;
+                  keyIterator.remove();
 					}
 
 					if (done) {

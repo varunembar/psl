@@ -17,6 +17,8 @@
  */
 package org.linqs.psl.application.inference.distributed.message;
 
+import org.linqs.psl.application.inference.distributed.NetUtils;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -35,12 +37,16 @@ public class Ack extends Message {
 
 	@Override
 	protected byte[] serializePayload() {
-		return new byte[]{(byte)(success ? 1 : 0)};
+      ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE);
+      buffer.clear();
+      buffer.putInt(success ? 1 : 0);
+      buffer.flip();
+      return buffer.array();
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
-		success = payload.get() == 1;
+		success = (payload.getInt() == 1);
 	}
 
 	@Override
