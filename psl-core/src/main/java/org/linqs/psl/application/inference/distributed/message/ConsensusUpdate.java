@@ -29,30 +29,30 @@ import java.nio.ByteBuffer;
  * calcualte the primal residuals and respond with a PrimalResidualPartials.
  */
 public class ConsensusUpdate extends DoubleList {
-   public boolean calcPrimalResidals;
+	public boolean calcPrimalResidals;
 
 	public ConsensusUpdate() {
-      super();
-      calcPrimalResidals = false;
-   }
+		super();
+		calcPrimalResidals = false;
+	}
 
 	public ConsensusUpdate(int size) {
-      super(size);
-      calcPrimalResidals = false;
+		super(size);
+		calcPrimalResidals = false;
 	}
 
 	@Override
-   public int additionalPayloadSize() {
-      return NetUtils.INT_SIZE;
-   }
+	public int additionalPayloadSize() {
+		return NetUtils.INT_SIZE;
+	}
 
 	@Override
-   public void serializeAdditionalPayload(ByteBuffer buffer) {
-      buffer.putInt(calcPrimalResidals ? 1 : 0);
-   }
+	public void serializeAdditionalPayload(ByteBuffer buffer) {
+		buffer.putInt(calcPrimalResidals ? 1 : 0);
+	}
 
 	@Override
-   public void deserializeAdditionalPayload(ByteBuffer payload) {
+	public void deserializeAdditionalPayload(ByteBuffer payload) {
 		calcPrimalResidals = (payload.getInt() == 1);
-   }
+	}
 }

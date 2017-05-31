@@ -25,38 +25,38 @@ import java.nio.ByteBuffer;
  * A message from a worker to a master with informaion on how to update the consensus values.
  */
 public class ConsensusPartials extends DoubleList {
-   public double axNormInc;
-   public double ayNormInc;
+	public double axNormInc;
+	public double ayNormInc;
 
 	public ConsensusPartials() {
-      super();
-   }
+		super();
+	}
 
 	public ConsensusPartials(int size) {
-      super(size);
+		super(size);
 	}
 
 	@Override
 	public void zero() {
-      axNormInc = 0;
-      ayNormInc = 0;
-      super.zero();
-   }
+		axNormInc = 0;
+		ayNormInc = 0;
+		super.zero();
+	}
 
 	@Override
-   public int additionalPayloadSize() {
-      return NetUtils.DOUBLE_SIZE * 2;
-   }
+	public int additionalPayloadSize() {
+		return NetUtils.DOUBLE_SIZE * 2;
+	}
 
 	@Override
-   public void serializeAdditionalPayload(ByteBuffer buffer) {
-      buffer.putDouble(axNormInc);
-      buffer.putDouble(ayNormInc);
-   }
+	public void serializeAdditionalPayload(ByteBuffer buffer) {
+		buffer.putDouble(axNormInc);
+		buffer.putDouble(ayNormInc);
+	}
 
 	@Override
-   public void deserializeAdditionalPayload(ByteBuffer payload) {
-      axNormInc = payload.getDouble();
-      ayNormInc = payload.getDouble();
-   }
+	public void deserializeAdditionalPayload(ByteBuffer payload) {
+		axNormInc = payload.getDouble();
+		ayNormInc = payload.getDouble();
+	}
 }

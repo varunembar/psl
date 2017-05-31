@@ -273,7 +273,9 @@ public class ADMMReasoner implements Reasoner {
 				epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(AyNorm);
 			}
 
-			if (iter % (50 * stopCheck) == 0) {
+			// TEST
+         // if (iter % (50 * stopCheck) == 0) {
+			if (1 == 1 || iter % (50 * stopCheck) == 0) {
 				/* TEST
 				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
 				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);

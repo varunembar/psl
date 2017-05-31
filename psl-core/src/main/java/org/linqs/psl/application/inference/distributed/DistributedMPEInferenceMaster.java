@@ -97,27 +97,27 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		atomManager = new PersistedAtomManager(db);
 	}
 
-   // TODO(eriq): Data format needs work: [worker][row][col]
+	// TODO(eriq): Data format needs work: [worker][row][col]
 	public FullInferenceResult mpeInference(String partition, String predicate, String[][][] partitionData) {
-      assert(partitionData == null || partitionData.length == workerAddresses.size());
+		assert(partitionData == null || partitionData.length == workerAddresses.size());
 
 		log.debug("Initializing Workers");
 		WorkerPool workers = initWorkers();
 		log.debug("Workers initialized");
 
-      if (partitionData != null) {
-         log.debug("Sending Data To Workers");
+		if (partitionData != null) {
+			log.debug("Sending Data To Workers");
 
-         List<Message> loadDataMessages = new ArrayList<Message>();
-         for (String[][] data : partitionData) {
-            loadDataMessages.add(new LoadData(partition, predicate, data));
-         }
-         workers.blockingSubmit(loadDataMessages);
+			List<Message> loadDataMessages = new ArrayList<Message>();
+			for (String[][] data : partitionData) {
+				loadDataMessages.add(new LoadData(partition, predicate, data));
+			}
+			workers.blockingSubmit(loadDataMessages);
 
-         log.debug("Data Sent To Workers");
-      }
+			log.debug("Data Sent To Workers");
+		}
 
-      ADMMReasonerMaster reasoner = new ADMMReasonerMaster(config, workers, atomManager);
+		ADMMReasonerMaster reasoner = new ADMMReasonerMaster(config, workers, atomManager);
 
 		log.info("Beginning inference.");
 		reasoner.optimize();

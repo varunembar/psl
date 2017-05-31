@@ -30,42 +30,42 @@ import java.util.List;
  * For serialization, we will turn the data into a giant string.
  */
 public class LoadData extends Message {
-   private static final String COL_DELIM = "\t";
-   private static final String ROW_DELIM = "\n";
+	private static final String COL_DELIM = "\t";
+	private static final String ROW_DELIM = "\n";
 
 	public String partition;
 	public String predicate;
-   public String[][] data;
+	public String[][] data;
 
 	public LoadData() {
 	}
 
 	public LoadData(String partition, String predicate, String[][] data) {
-      this.partition = partition;
-      this.predicate = predicate;
-      this.data = data;
+		this.partition = partition;
+		this.predicate = predicate;
+		this.data = data;
 	}
 
 	@Override
 	protected byte[] serializePayload() {
-      // Build the giant string.
-      StringBuilder builder = new StringBuilder();
-      for (int i = 0; i < data.length; i++) {
-         if (i != 0) {
-            builder.append(ROW_DELIM);
-         }
+		// Build the giant string.
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < data.length; i++) {
+			if (i != 0) {
+				builder.append(ROW_DELIM);
+			}
 
-         for (int j = 0; j < data[i].length; j++) {
-            if (j != 0) {
-               builder.append(COL_DELIM);
-            }
-            builder.append(data[i][j]);
-         }
-      }
+			for (int j = 0; j < data[i].length; j++) {
+				if (j != 0) {
+					builder.append(COL_DELIM);
+				}
+				builder.append(data[i][j]);
+			}
+		}
 
-      ByteBuffer dataBuffer = Message.encodeString(builder.toString());
-      ByteBuffer partitionBuffer = Message.encodeString(partition);
-      ByteBuffer predicateBuffer = Message.encodeString(predicate);
+		ByteBuffer dataBuffer = Message.encodeString(builder.toString());
+		ByteBuffer partitionBuffer = Message.encodeString(partition);
+		ByteBuffer predicateBuffer = Message.encodeString(predicate);
 
 		ByteBuffer buffer = ByteBuffer.allocate(dataBuffer.limit() + partitionBuffer.limit() + predicateBuffer.limit());
 		buffer.clear();
@@ -79,16 +79,16 @@ public class LoadData extends Message {
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
-      partition = Message.decodeString(payload);
-      predicate = Message.decodeString(payload);
+		partition = Message.decodeString(payload);
+		predicate = Message.decodeString(payload);
 
-      String dataString = Message.decodeString(payload);
-      String[] rows = dataString.split(ROW_DELIM);
+		String dataString = Message.decodeString(payload);
+		String[] rows = dataString.split(ROW_DELIM);
 
-      data = new String[rows.length][];
-      for (int i = 0; i < rows.length; i++) {
-         data[i] = rows[i].split(COL_DELIM);
-      }
+		data = new String[rows.length][];
+		for (int i = 0; i < rows.length; i++) {
+			data[i] = rows[i].split(COL_DELIM);
+		}
 	}
 
 	@Override

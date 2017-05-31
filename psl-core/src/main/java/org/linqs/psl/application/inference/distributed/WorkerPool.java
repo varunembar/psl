@@ -89,17 +89,17 @@ public class WorkerPool {
 		}
 	}
 
-   /**
-    * Get the number of workers.
-    */
-   public int size() {
-      return workers.size();
-   }
+	/**
+	 * Get the number of workers.
+	 */
+	public int size() {
+		return workers.size();
+	}
 
 	/**
 	 * Submit a message to all workers and wait for all workers to respond.
 	 */
-	public List<Response> blockingSubmit(List<Message> messages) {	
+	public List<Response> blockingSubmit(List<Message> messages) {
 		List<Response> responses = new ArrayList<Response>(workers.size());
 		for (Response response : submit(messages)) {
 			responses.add(response);
@@ -202,12 +202,12 @@ public class WorkerPool {
 			}
 
 			if (!responseQueue.isEmpty()) {
-            Response response = responseQueue.remove();
+				Response response = responseQueue.remove();
 
-            // If we have recieved all responses, prepare for the next request.
-            if (responseQueue.isEmpty() && numResponses == workers.size()) {
-               activeIterator = null;
-            }
+				// If we have recieved all responses, prepare for the next request.
+				if (responseQueue.isEmpty() && numResponses == workers.size()) {
+					activeIterator = null;
+				}
 
 				return response;
 			}
@@ -218,41 +218,41 @@ public class WorkerPool {
 				boolean done = false;
 				while (true) {
 					if (readSelector.select() <= 0) {
-                  continue;
-               }
+						continue;
+					}
 
-               // We need the iterator because we need to remove our own keys.
-               Iterator<SelectionKey> keyIterator = readSelector.selectedKeys().iterator();
-               while (keyIterator.hasNext()) {
-                  SelectionKey selectedKey = keyIterator.next();
+					// We need the iterator because we need to remove our own keys.
+					Iterator<SelectionKey> keyIterator = readSelector.selectedKeys().iterator();
+					while (keyIterator.hasNext()) {
+						SelectionKey selectedKey = keyIterator.next();
 
 						// We only are interested in reading, so it better be ready.
 						if (!selectedKey.isValid() || !selectedKey.isReadable()) {
-                     keyIterator.remove();
+							keyIterator.remove();
 							continue;
 						}
 
 						int workerIndex = ((Integer)selectedKey.attachment()).intValue();
 
-                  // Make sure the connection is open.
-                  if (!workers.get(workerIndex).isOpen() || !workers.get(workerIndex).isConnected()) {
-                     keyIterator.remove();
+						// Make sure the connection is open.
+						if (!workers.get(workerIndex).isOpen() || !workers.get(workerIndex).isConnected()) {
+							keyIterator.remove();
 							continue;
 						}
 
 						payloadBuffer = NetUtils.readMessage(workers.get(workerIndex), payloadBuffer);
 
-                  // TODO(eriq): Manage closed connections better. Select will constantly say that dead connections are ready.
-                  // Connection was closed, read is not valid.
-                  if (payloadBuffer == null) {
-                     keyIterator.remove();
-                     continue;
-                  }
+						// TODO(eriq): Manage closed connections better. Select will constantly say that dead connections are ready.
+						// Connection was closed, read is not valid.
+						if (payloadBuffer == null) {
+							keyIterator.remove();
+							continue;
+						}
 
 						// Make sure we have not heard from this worker before.
 						if (recievedResponses[workerIndex]) {
 							log.warn("Recieved multiple responses from a worker.");
-                     keyIterator.remove();
+							keyIterator.remove();
 							continue;
 						}
 
@@ -261,7 +261,7 @@ public class WorkerPool {
 						numResponses++;
 
 						done = true;
-                  keyIterator.remove();
+						keyIterator.remove();
 					}
 
 					if (done) {

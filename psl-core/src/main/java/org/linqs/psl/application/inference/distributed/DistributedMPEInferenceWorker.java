@@ -160,7 +160,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 		// Accept messages from the master until it closes.
 		while (!done) {
-			log.info("Waiting for messages from master");
+			log.debug("Waiting for messages from master");
 
 			buffer = NetUtils.readMessage(inStream, buffer);
 			Message message = Message.deserialize(buffer);
@@ -186,9 +186,9 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			} else if (message instanceof ConsensusUpdate) {
 				consensusValues = ((ConsensusUpdate)message).getValues();
 
-            if (((ConsensusUpdate)message).calcPrimalResidals) {
-               response = reasoner.calculatePrimalResiduals(termStore, consensusValues);
-            }
+				if (((ConsensusUpdate)message).calcPrimalResidals) {
+					response = reasoner.calculatePrimalResiduals(termStore, consensusValues);
+				}
 			} else if (message instanceof IterationStart) {
 				response = reasoner.iteration(termStore, consensusValues);
 			} else if (message instanceof Close) {

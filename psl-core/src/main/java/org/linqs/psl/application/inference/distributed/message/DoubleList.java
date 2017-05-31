@@ -28,7 +28,7 @@ public abstract class DoubleList extends Message {
 	public double[] values;
 
 	public DoubleList() {
-   }
+	}
 
 	public DoubleList(double[] values) {
 		this.values = values;
@@ -42,13 +42,13 @@ public abstract class DoubleList extends Message {
 		return values;
 	}
 
-   /**
-    * Set all values to zero.
-    */
+	/**
+	 * Set all values to zero.
+	 */
 	public void zero() {
-      for (int i = 0; i < values.length; i++) {
-         values[i] = 0.0;
-      }
+		for (int i = 0; i < values.length; i++) {
+			values[i] = 0.0;
+		}
 	}
 
 	public double getValue(int i) {
@@ -69,7 +69,7 @@ public abstract class DoubleList extends Message {
 			buffer.putDouble(value);
 		}
 
-      serializeAdditionalPayload(buffer);
+		serializeAdditionalPayload(buffer);
 
 		buffer.flip();
 		return buffer.array();
@@ -83,7 +83,7 @@ public abstract class DoubleList extends Message {
 			values[i] = payload.getDouble();
 		}
 
-      deserializeAdditionalPayload(payload);
+		deserializeAdditionalPayload(payload);
 	}
 
 	@Override
@@ -91,10 +91,10 @@ public abstract class DoubleList extends Message {
 		return "DoubleList (" + this.getClass().getName() + "): " + values.length;
 	}
 
-   /**
-    * The size of any additional data that needs to be serialized.
-    */
-   public abstract int additionalPayloadSize();
-   public abstract void serializeAdditionalPayload(ByteBuffer buffer);
-   public abstract void deserializeAdditionalPayload(ByteBuffer payload);
+	/**
+	 * The size of any additional data that needs to be serialized.
+	 */
+	public abstract int additionalPayloadSize();
+	public abstract void serializeAdditionalPayload(ByteBuffer buffer);
+	public abstract void deserializeAdditionalPayload(ByteBuffer payload);
 }

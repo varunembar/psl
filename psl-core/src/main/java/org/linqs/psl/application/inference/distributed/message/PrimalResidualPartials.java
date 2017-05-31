@@ -33,7 +33,7 @@ public class PrimalResidualPartials extends Message {
 	}
 
 	public PrimalResidualPartials(double primalResInc,
-         double lagrangePenalty, double augmentedLagrangePenalty) {
+		double lagrangePenalty, double augmentedLagrangePenalty) {
 		this.primalResInc = primalResInc;
 		this.lagrangePenalty = lagrangePenalty;
 		this.augmentedLagrangePenalty = augmentedLagrangePenalty;

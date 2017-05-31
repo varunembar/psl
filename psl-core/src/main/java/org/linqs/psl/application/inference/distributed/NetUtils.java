@@ -59,7 +59,6 @@ public class NetUtils {
 
 		// Send out.
 		try {
-			// TEST
 			log.debug("Sending message ({})[{}] to {}", message, buffer.limit(), socket.getRemoteAddress());
 
 			while (buffer.hasRemaining()) {
@@ -77,7 +76,6 @@ public class NetUtils {
 
 		// Send out.
 		try {
-			// TEST
 			log.debug("Sending message ({})[{}] to an out stream", message, buffer.limit());
 
 			out.write(buffer.array(), 0, buffer.limit());
@@ -100,17 +98,17 @@ public class NetUtils {
 		sizeBuffer.clear();
 
 		// Read the size
-      int bytesRead;
+		int bytesRead;
 		try {
-         bytesRead = socket.read(sizeBuffer);
+			bytesRead = socket.read(sizeBuffer);
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message size.", ex);
 		}
 
-      // connection was closed.
-      if (bytesRead == -1) {
-         return null;
-      }
+		// connection was closed.
+		if (bytesRead == -1) {
+			return null;
+		}
 
 		sizeBuffer.flip();
 		int payloadSize = sizeBuffer.getInt();
@@ -124,18 +122,17 @@ public class NetUtils {
 		// TODO(eriq): Better short read handling.
 		// Read the full payload.
 		try {
-         bytesRead = 0;
-         while (bytesRead < payloadSize) {
-			   int currentRead = socket.read(buffer);
-            bytesRead += currentRead;
+			bytesRead = 0;
+			while (bytesRead < payloadSize) {
+				int currentRead = socket.read(buffer);
+				bytesRead += currentRead;
 
-            if (currentRead== -1) {
-               // TODO(eriq): Better
-               return null;
-            }
-         }
+				if (currentRead== -1) {
+					// TODO(eriq): Better
+					return null;
+				}
+			}
 
-			// TEST
 			log.debug("Recieved message (size: {}) from {}", payloadSize + sizeBuffer.capacity(), socket.getRemoteAddress());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
@@ -149,17 +146,17 @@ public class NetUtils {
 		sizeBuffer.clear();
 
 		// Read the size
-      int bytesRead;
+		int bytesRead;
 		try {
-         bytesRead = inStream.read(sizeBuffer.array());
+			bytesRead = inStream.read(sizeBuffer.array());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message size.", ex);
 		}
 
-      // connection was closed.
-      if (bytesRead == -1) {
-         return null;
-      }
+		// connection was closed.
+		if (bytesRead == -1) {
+			return null;
+		}
 
 		// Note that we do not need to flip the buffer since we are reading directly into the byte array.
 		int payloadSize = sizeBuffer.getInt();
@@ -173,14 +170,13 @@ public class NetUtils {
 		// TODO(eriq): Could we read short?
 		// Read the full payload.
 		try {
-         bytesRead = 0;
-         while (bytesRead < payloadSize) {
-			   int currentRead = inStream.read(buffer.array(), bytesRead, payloadSize - bytesRead);
-            bytesRead += currentRead;
-         }
-         buffer.limit(payloadSize);
+			bytesRead = 0;
+			while (bytesRead < payloadSize) {
+				int currentRead = inStream.read(buffer.array(), bytesRead, payloadSize - bytesRead);
+				bytesRead += currentRead;
+			}
+			buffer.limit(payloadSize);
 
-			// TEST
 			log.debug("Recieved message (size: {}) from an in stream", payloadSize + sizeBuffer.limit());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);

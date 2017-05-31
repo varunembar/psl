@@ -24,24 +24,24 @@ import org.linqs.psl.application.inference.distributed.message.Message;
  * Responses just wrap the message together with an identifier for the worker.
  */
 public class Response {
-   private int worker;
-   private Message message;
+	private int worker;
+	private Message message;
 
-   public Response(int worker, Message message) {
-      this.worker = worker;
-      this.message = message;
-   }
+	public Response(int worker, Message message) {
+		this.worker = worker;
+		this.message = message;
+	}
 
-   public int getWorker() {
-      return worker;
-   }
+	public int getWorker() {
+		return worker;
+	}
 
-   public Message getMessage() {
-      return message;
-   }
+	public Message getMessage() {
+		return message;
+	}
 
-   @Override
-   public String toString() {
-      return "Response: [" + worker + ", " + message + "]";
-   }
+	@Override
+	public String toString() {
+		return "Response: [" + worker + ", " + message + "]";
+	}
 }

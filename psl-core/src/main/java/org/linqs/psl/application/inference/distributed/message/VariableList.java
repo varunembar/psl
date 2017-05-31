@@ -33,28 +33,28 @@ import java.util.List;
  */
 public class VariableList extends Message {
 	private String[] variables;
-   private int[] localCounts;
+	private int[] localCounts;
 	private int numLocalVariables;
 
 	public VariableList() {
 	}
 
-   /**
-    * Note that we are storing the string representation of the atom associated with a variable.
-    */
+	/**
+	 * Note that we are storing the string representation of the atom associated with a variable.
+	 */
 	public VariableList(ADMMTermStore termStore) {
-      this.numLocalVariables = termStore.getNumLocalVariables();
+		this.numLocalVariables = termStore.getNumLocalVariables();
 
-      localCounts = new int[termStore.getNumGlobalVariables()];
-      for (int i = 0; i < localCounts.length; i++) {
-         localCounts[i] = termStore.getLocalVariables(i).size();
-      }
+		localCounts = new int[termStore.getNumGlobalVariables()];
+		for (int i = 0; i < localCounts.length; i++) {
+			localCounts[i] = termStore.getLocalVariables(i).size();
+		}
 
-      AtomFunctionVariable[] rawVariables = termStore.getGlobalVariables();
+		AtomFunctionVariable[] rawVariables = termStore.getGlobalVariables();
 		variables = new String[rawVariables.length];
-      for (int i = 0; i < variables.length; i++) {
-         variables[i] = rawVariables[i].getAtom().toString();
-      }
+		for (int i = 0; i < variables.length; i++) {
+			variables[i] = rawVariables[i].getAtom().toString();
+		}
 	}
 
 	public int size() {
@@ -75,13 +75,13 @@ public class VariableList extends Message {
 
 	@Override
 	protected byte[] serializePayload() {
-      List<ByteBuffer> stringBuffers = new ArrayList<ByteBuffer>();
-      int totalStringSize = 0;
-      for (String variable : variables) {
-         ByteBuffer stringBuffer = Message.encodeString(variable);
-         stringBuffers.add(stringBuffer);
-         totalStringSize += stringBuffer.limit();
-      }
+		List<ByteBuffer> stringBuffers = new ArrayList<ByteBuffer>();
+		int totalStringSize = 0;
+		for (String variable : variables) {
+			ByteBuffer stringBuffer = Message.encodeString(variable);
+			stringBuffers.add(stringBuffer);
+			totalStringSize += stringBuffer.limit();
+		}
 
 		// The number of strings, the number of local vairbales, the local variable counts, and all the strings.
 		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE * (2 + variables.length) + totalStringSize);
@@ -89,9 +89,9 @@ public class VariableList extends Message {
 		buffer.putInt(numLocalVariables);
 		buffer.putInt(variables.length);
 
-      for (int localCount : localCounts) {
-         buffer.putInt(localCount);
-      }
+		for (int localCount : localCounts) {
+			buffer.putInt(localCount);
+		}
 
 		for (ByteBuffer stringBuffer : stringBuffers) {
 			buffer.put(stringBuffer);
@@ -106,10 +106,10 @@ public class VariableList extends Message {
 		numLocalVariables = payload.getInt();
 		int size = payload.getInt();
 
-      localCounts = new int[size];
+		localCounts = new int[size];
 		for (int i = 0; i < size; i++) {
-         localCounts[i] = payload.getInt();
-      }
+			localCounts[i] = payload.getInt();
+		}
 
 		variables = new String[size];
 		for (int i = 0; i < size; i++) {

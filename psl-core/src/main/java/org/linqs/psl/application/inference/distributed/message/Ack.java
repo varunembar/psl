@@ -37,11 +37,11 @@ public class Ack extends Message {
 
 	@Override
 	protected byte[] serializePayload() {
-      ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE);
-      buffer.clear();
-      buffer.putInt(success ? 1 : 0);
-      buffer.flip();
-      return buffer.array();
+		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE);
+		buffer.clear();
+		buffer.putInt(success ? 1 : 0);
+		buffer.flip();
+		return buffer.array();
 	}
 
 	@Override
