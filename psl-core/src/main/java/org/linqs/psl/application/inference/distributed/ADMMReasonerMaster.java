@@ -41,11 +41,12 @@ import java.util.concurrent.CyclicBarrier;
 import org.linqs.psl.model.atom.PersistedAtomManager;
 import org.linqs.psl.model.atom.RandomVariableAtom;
 
+import org.linqs.psl.application.inference.distributed.message.ConsensusPartials;
 import org.linqs.psl.application.inference.distributed.message.ConsensusUpdate;
 import org.linqs.psl.application.inference.distributed.message.InitADMM;
-import org.linqs.psl.application.inference.distributed.message.IterationResult;
 import org.linqs.psl.application.inference.distributed.message.IterationStart;
 import org.linqs.psl.application.inference.distributed.message.Message;
+import org.linqs.psl.application.inference.distributed.message.PrimalResidualPartials;
 import org.linqs.psl.application.inference.distributed.message.VariableList;
 
 import java.util.ArrayList;
@@ -114,7 +115,7 @@ public class ADMMReasonerMaster {
 
 	private WorkerPool workers;
 
-	// TODO(eriq): I would live a better identifier than the full string form.
+	// TODO(eriq): I would like a better identifier than the full string form.
 	//   Hash is no good since it is not perfect (there can be collisions).
 	// All of the variables that we have seen.
 	// {string: index}.
@@ -130,6 +131,10 @@ public class ADMMReasonerMaster {
 	// Required for initialization.
 	private int numLocalVariables;
 
+   // The total number of local variables across workers for each global variable.
+   // Kept as a List instead of int[] because we do not actually know how many variables we have up front.
+   private List<Integer> localVariableCount;
+
 	// Keep around the consensus update messages so we don't have to reallocate.
 	List<Message> updateMessages;
 
@@ -142,7 +147,9 @@ public class ADMMReasonerMaster {
 		allVariables = new HashMap<String, Integer>();
 		workerVariableMapping = new int[workers.size()][];
 		updateMessages = new ArrayList<Message>();
+
 		numLocalVariables = 0;
+      localVariableCount = new ArrayList<Integer>();
 
 		maxIter = config.getInt(MAX_ITER_KEY, MAX_ITER_DEFAULT);
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
@@ -176,9 +183,11 @@ public class ADMMReasonerMaster {
 				String key = workerVariables.getVariable(i);
 				if (!allVariables.containsKey(key)) {
 					allVariables.put(key, allVariables.size());
+               localVariableCount.add(new Integer(0));
 				}
 
 				workerVariableMapping[workerId][i] = allVariables.get(key).intValue();
+            localVariableCount.set(allVariables.get(key).intValue(), workerVariables.getLocalCount(i));
 			}
 		}
 
@@ -204,17 +213,24 @@ public class ADMMReasonerMaster {
 		return consensusValues;
 	}
 
-	private void updateWorkerConsensus(double[] consensusValues) {
+	private Iterable<Response> updateWorkerConsensus(double[] consensusValues, boolean calcPrimalResidals) {
 		// All the update messages have already been allocated, but we need to update them.
 		for (int workerId = 0; workerId < workers.size(); workerId++) {
 			for (int remoteVariableId = 0; remoteVariableId < workerVariableMapping[workerId].length; remoteVariableId++) {
 				((ConsensusUpdate)updateMessages.get(workerId)).setValue(
 						remoteVariableId, consensusValues[workerVariableMapping[workerId][remoteVariableId]]);
 			}
+
+         ((ConsensusUpdate)updateMessages.get(workerId)).calcPrimalResidals = calcPrimalResidals;
 		}
 
-		// Send out the updates and wait for all responses.
-		workers.blockingSubmit(updateMessages);
+      if (!calcPrimalResidals) {
+         // Send out the updates and wait for all responses.
+         workers.blockingSubmit(updateMessages);
+         return null;
+      }
+
+      return workers.submit(updateMessages);
 	}
 
 	/**
@@ -239,12 +255,15 @@ public class ADMMReasonerMaster {
 	// @Override
 	public void optimize() {
 		double[] consensusValues = collectVariables();
+      double[] newConsensusValues = new double[consensusValues.length];
+
+      // Update (initialize) the consunsus values for each worker.
+      // Do not request primal residual calculation.
+      updateWorkerConsensus(consensusValues, false);
 
 		// The number of workers that use a specific variable.
 		// We need this when updating the consensus value.
 		int[] variableWorkerCount = computeVariableWorkerCount();
-
-		// TODO(eriq): What happens when we have conflicting updates from worker about a variable?
 
 		// Perform inference.
 		double primalRes = Double.POSITIVE_INFINITY;
@@ -252,72 +271,113 @@ public class ADMMReasonerMaster {
 		double epsilonPrimal = 0.0;
 		double epsilonDual = 0.0;
 		double epsilonAbsTerm = Math.sqrt(numLocalVariables) * epsilonAbs;
-		double AxNorm = 0.0;
-		double BzNorm = 0.0;
-		double AyNorm = 0.0;
+		double axNorm = 0.0;
+		double bzNorm = 0.0;
+		double ayNorm = 0.0;
 		double lagrangePenalty = 0.0;
 		double augmentedLagrangePenalty = 0.0;
 
 		int iter = 1;
 
-		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iter < maxIter) {
+		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iter <= maxIter) {
+			/* TEST
+			// TEST
+			System.err.println("Iteration: " + iter);
+			log.info("Iteration: {}", iter);
+			*/
+
 			primalRes = 0.0;
 			dualRes = 0.0;
-			AxNorm = 0.0;
-			BzNorm = 0.0;
-			AyNorm = 0.0;
+			axNorm = 0.0;
+			bzNorm = 0.0;
+			ayNorm = 0.0;
 			lagrangePenalty = 0.0;
 			augmentedLagrangePenalty = 0.0;
 
-			// Update the consunsus values for each worker.
-			updateWorkerConsensus(consensusValues);
+			// TEST
+			System.err.println("TEST4.0: " + consensusValues[0]);
 
-			// Zero out the consensus values after we have sent them off to the workers.
-			// We will be setting new values based off the workers results.
-			for (int i = 0; i < consensusValues.length; i++) {
-				consensusValues[i] = 0;
+
+			// Zero out the new consensus values since we will be using them as a sum.
+			for (int i = 0; i < newConsensusValues.length; i++) {
+				newConsensusValues[i] = 0;
 			}
 
 			// Perform an iteration on each worker.
 			// Do not wait for all workers to respond.
 			// Get the results as they stream in and compute new values.
 			for (Response response : workers.submit(new IterationStart())) {
-				if (!(response.getMessage() instanceof IterationResult)) {
+				if (!(response.getMessage() instanceof ConsensusPartials)) {
 					throw new RuntimeException("Unexpected response type: " + response.getMessage().getClass().getName());
 				}
 
-				IterationResult result = (IterationResult)response.getMessage();
+				ConsensusPartials result = (ConsensusPartials)response.getMessage();
 
-				primalRes += result.primalResInc;
-				dualRes += result.dualResInc;
-				AxNorm += result.AxNormInc;
-				BzNorm += result.BzNormInc;
-				AyNorm += result.AyNormInc;
-				lagrangePenalty += result.lagrangePenalty;
-				augmentedLagrangePenalty += result.augmentedLagrangePenalty;
+				axNorm += result.axNormInc;
+				ayNorm += result.ayNormInc;
 
-				// Update the consensus values with those from the worker.
+				// Sum up consensus partials from each worker's variable set.
 				int workerId = response.getWorker();
-				for (int remoteIndex = 0; remoteIndex < result.consensusValues.length; remoteIndex++) {
-					consensusValues[workerVariableMapping[workerId][remoteIndex]] += result.consensusValues[remoteIndex];
+				for (int remoteIndex = 0; remoteIndex < result.values.length; remoteIndex++) {
+					// TEST
+					if (workerVariableMapping[workerId][remoteIndex] == 0) {
+						System.out.println("TEST3." + iter + "." + workerId + "." + remoteIndex + "(" + workerVariableMapping[workerId][remoteIndex] + ") -- " + result.values[remoteIndex]);
+					}
+
+					newConsensusValues[workerVariableMapping[workerId][remoteIndex]] += result.values[remoteIndex];
 				}
 			}
 
-			// Average the consensus values from all the workers.
-			// (Since a single variable could be on multiple workers).
-			for (int i = 0; i < consensusValues.length; i++) {
-				consensusValues[i] /= variableWorkerCount[i];
+			// Average the consensus values over the number of local copies.
+			for (int i = 0; i < newConsensusValues.length; i++) {
+				newConsensusValues[i] /= localVariableCount.get(i).intValue();
+
+            if (newConsensusValues[i] < LOWER_BOUND) {
+               newConsensusValues[i] = LOWER_BOUND;
+            } else if (newConsensusValues[i] > UPPER_BOUND) {
+               newConsensusValues[i] = UPPER_BOUND;
+            }
 			}
 
-			primalRes = Math.sqrt(primalRes);
+         // Calculate the dual residual.
+			for (int i = 0; i < newConsensusValues.length; i++) {
+            double diff = consensusValues[i] - newConsensusValues[i];
+            dualRes += diff * diff * localVariableCount.get(i).intValue();
+            bzNorm += newConsensusValues[i] * newConsensusValues[i] * localVariableCount.get(i).intValue();
+         }
 			dualRes = stepSize * Math.sqrt(dualRes);
 
-			epsilonPrimal = epsilonAbsTerm + epsilonRel * Math.max(Math.sqrt(AxNorm), Math.sqrt(BzNorm));
-			epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(AyNorm);
+         // Solidify the new consensus values.
+         consensusValues = newConsensusValues;
+
+         // Pass the workers the new consensus values and request the primal residual partials.
+			for (Response response : updateWorkerConsensus(consensusValues, true)) {
+				if (!(response.getMessage() instanceof PrimalResidualPartials)) {
+					throw new RuntimeException("Unexpected response type: " + response.getMessage().getClass().getName());
+				}
+
+				PrimalResidualPartials result = (PrimalResidualPartials)response.getMessage();
+
+            primalRes += result.primalResInc;
+            lagrangePenalty += result.lagrangePenalty;
+            augmentedLagrangePenalty += result.augmentedLagrangePenalty;
+         }
+
+			// TEST
+			System.err.println("TEST4.1: " + consensusValues[0]);
+
+			primalRes = Math.sqrt(primalRes);
+
+			epsilonPrimal = epsilonAbsTerm + epsilonRel * Math.max(Math.sqrt(axNorm), Math.sqrt(bzNorm));
+			epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(ayNorm);
 
 			if (iter % 50 == 0) {
-				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", new Object[] {iter, primalRes, dualRes});
+				/*
+				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
 				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
+				*/
+				log.info("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
+				log.info("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
 			}
 
 			iter++;

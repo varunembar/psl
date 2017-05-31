@@ -95,7 +95,7 @@ public class ADMMTermStore implements TermStore<ADMMObjectiveTerm> {
 
 	/**
 	 * Get all of the global variables.
-	 * This method is not as simple as it may seem and should not be called often.
+	 * This method is not as simple as it may seem and should not be called often (ie, in a loop).
 	 */
 	public AtomFunctionVariable[] getGlobalVariables() {
 		AtomFunctionVariable[] variables = new AtomFunctionVariable[variableIndexes.size()];

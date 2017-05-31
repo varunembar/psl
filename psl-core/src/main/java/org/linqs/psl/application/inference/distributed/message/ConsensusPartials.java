@@ -22,37 +22,41 @@ import org.linqs.psl.application.inference.distributed.NetUtils;
 import java.nio.ByteBuffer;
 
 /**
- * A message updating a worker with consensus values.
- * Values are indexed matching what the worker reported in its
- * VariableList message.
- * If calcPrimalResidals is true, this indicates that the worker should
- * calcualte the primal residuals and respond with a PrimalResidualPartials.
+ * A message from a worker to a master with informaion on how to update the consensus values.
  */
-public class ConsensusUpdate extends DoubleList {
-   public boolean calcPrimalResidals;
+public class ConsensusPartials extends DoubleList {
+   public double axNormInc;
+   public double ayNormInc;
 
-	public ConsensusUpdate() {
+	public ConsensusPartials() {
       super();
-      calcPrimalResidals = false;
    }
 
-	public ConsensusUpdate(int size) {
+	public ConsensusPartials(int size) {
       super(size);
-      calcPrimalResidals = false;
 	}
 
 	@Override
+	public void zero() {
+      axNormInc = 0;
+      ayNormInc = 0;
+      super.zero();
+   }
+
+	@Override
    public int additionalPayloadSize() {
-      return NetUtils.INT_SIZE;
+      return NetUtils.DOUBLE_SIZE * 2;
    }
 
 	@Override
    public void serializeAdditionalPayload(ByteBuffer buffer) {
-      buffer.putInt(calcPrimalResidals ? 1 : 0);
+      buffer.putDouble(axNormInc);
+      buffer.putDouble(ayNormInc);
    }
 
 	@Override
    public void deserializeAdditionalPayload(ByteBuffer payload) {
-		calcPrimalResidals = (payload.getInt() == 1);
+      axNormInc = payload.getDouble();
+      ayNormInc = payload.getDouble();
    }
 }

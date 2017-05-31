@@ -22,79 +22,45 @@ import org.linqs.psl.application.inference.distributed.NetUtils;
 import java.nio.ByteBuffer;
 
 /**
- * The result of a round of iteration.
+ * Primal residuals to be sent to the master to sum up.
  */
-// TODO(eriq): Share code with Consensusupdate?
-public class IterationResult extends Message {
+public class PrimalResidualPartials extends Message {
 	public double primalResInc;
-	public double dualResInc;
-	public double AxNormInc;
-	public double BzNormInc;
-	public double AyNormInc;
 	public double lagrangePenalty;
 	public double augmentedLagrangePenalty;
-	public double[] consensusValues;
 
-	public IterationResult() {
+	public PrimalResidualPartials() {
 	}
 
-	public IterationResult(double primalResInc, double dualResInc,
-			double AxNormInc, double BzNormInc, double AyNormInc,
-			double lagrangePenalty, double augmentedLagrangePenalty,
-			double[] consensusValues) {
+	public PrimalResidualPartials(double primalResInc,
+         double lagrangePenalty, double augmentedLagrangePenalty) {
 		this.primalResInc = primalResInc;
-		this.dualResInc = dualResInc;
-		this.AxNormInc = AxNormInc;
-		this.BzNormInc = BzNormInc;
-		this.AyNormInc = AyNormInc;
 		this.lagrangePenalty = lagrangePenalty;
 		this.augmentedLagrangePenalty = augmentedLagrangePenalty;
-		this.consensusValues = consensusValues;
 	}
 
 	@Override
 	protected byte[] serializePayload() {
-		// One int for the consensus size, 7 doubles for the other values, and then the consensus values.
-		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE + NetUtils.DOUBLE_SIZE * (7 + consensusValues.length));
+		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.DOUBLE_SIZE * 3);
 		buffer.clear();
 
 		buffer.putDouble(primalResInc);
-		buffer.putDouble(dualResInc);
-		buffer.putDouble(AxNormInc);
-		buffer.putDouble(BzNormInc);
-		buffer.putDouble(AyNormInc);
 		buffer.putDouble(lagrangePenalty);
 		buffer.putDouble(augmentedLagrangePenalty);
 
-		buffer.putInt(consensusValues.length);
-		for (double value : consensusValues) {
-			buffer.putDouble(value);
-		}
-
 		buffer.flip();
-
 		return buffer.array();
 	}
 
 	@Override
 	protected void deserializePayload(ByteBuffer payload) {
 		primalResInc = payload.getDouble();
-		dualResInc = payload.getDouble();
-		AxNormInc = payload.getDouble();
-		BzNormInc = payload.getDouble();
-		AyNormInc = payload.getDouble();
 		lagrangePenalty = payload.getDouble();
 		augmentedLagrangePenalty = payload.getDouble();
-
-		int size = payload.getInt();
-		consensusValues = new double[size];
-		for (int i = 0; i < size; i++) {
-			consensusValues[i] = payload.getDouble();
-		}
 	}
 
 	@Override
 	public String toString() {
-		return "IterationResult: " + consensusValues.length;
+		return "PrimalResidualPartials";
 	}
 }

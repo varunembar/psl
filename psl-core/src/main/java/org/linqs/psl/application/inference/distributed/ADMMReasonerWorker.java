@@ -38,7 +38,8 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 //
 
-import org.linqs.psl.application.inference.distributed.message.IterationResult;
+import org.linqs.psl.application.inference.distributed.message.ConsensusPartials;
+import org.linqs.psl.application.inference.distributed.message.PrimalResidualPartials;
 import org.linqs.psl.reasoner.admm.term.ADMMObjectiveTerm;
 
 import java.util.ArrayList;
@@ -82,9 +83,6 @@ public class ADMMReasonerWorker {
 	 */
 	private final double stepSize;
 
-	/**
-	 * Multithreading variables
-	 */
 	private final int numThreads;
 
 	private ADMMTermStore termStore;
@@ -93,14 +91,21 @@ public class ADMMReasonerWorker {
 	private List<MinimizeThread> minThreads;
 	private CyclicBarrier minBarrier;
 
-	private List<VariableUpdateThread> variableThreads;
-	private CyclicBarrier variableBarrier;
+	private List<ConsensusPartialsThread> consensusPartialThreads;
+	private CyclicBarrier consensusPartialBarrier;
+
+	private List<PrimalResidualsThread> primalResidualsThreads;
+	private CyclicBarrier primalResidualsBarrier;
+
+   // Keep a single consensus partials message that will be reused.
+   private ConsensusPartials consensusPartialsMessage;
 
 	public ADMMReasonerWorker(ConfigBundle config, ADMMTermStore termStore) {
 		stepSize = config.getDouble(STEP_SIZE_KEY, STEP_SIZE_DEFAULT);
 
 		this.termStore = termStore;
 		consensusValues = null;
+      consensusPartialsMessage = new ConsensusPartials(termStore.getNumGlobalVariables());
 
 		numThreads = config.getInt(NUM_THREADS_KEY, NUM_THREADS_DEFAULT);
 		if (numThreads <= 0) {
@@ -118,15 +123,26 @@ public class ADMMReasonerWorker {
 			minThreads.add(thread);
 		}
 
-		// Start up all the variable update threads.
-		variableThreads = new ArrayList<VariableUpdateThread>();
-		variableBarrier = new CyclicBarrier(numThreads + 1);
+		// Start up all the consensus partial threads.
+		consensusPartialThreads = new ArrayList<ConsensusPartialsThread>();
+		consensusPartialBarrier = new CyclicBarrier(numThreads + 1);
 
 		blockSize = (int)(Math.ceil((double)termStore.getNumGlobalVariables() / (double)numThreads));
 		for (int i = 0; i < numThreads; i++) {
-			VariableUpdateThread thread = new VariableUpdateThread(blockSize * i, Math.min(blockSize * (i + 1), termStore.getNumGlobalVariables()), variableBarrier);
+			ConsensusPartialsThread thread = new ConsensusPartialsThread(blockSize * i, Math.min(blockSize * (i + 1), termStore.getNumGlobalVariables()), consensusPartialBarrier);
 			thread.start();
-			variableThreads.add(thread);
+			consensusPartialThreads.add(thread);
+		}
+
+		// Start up all the primal residual threads.
+		primalResidualsThreads = new ArrayList<PrimalResidualsThread>();
+		primalResidualsBarrier = new CyclicBarrier(numThreads + 1);
+
+		blockSize = (int)(Math.ceil((double)termStore.getNumGlobalVariables() / (double)numThreads));
+		for (int i = 0; i < numThreads; i++) {
+			PrimalResidualsThread thread = new PrimalResidualsThread(blockSize * i, Math.min(blockSize * (i + 1), termStore.getNumGlobalVariables()), primalResidualsBarrier);
+			thread.start();
+			primalResidualsThreads.add(thread);
 		}
 	}
 
@@ -146,32 +162,42 @@ public class ADMMReasonerWorker {
 			minThreads = null;
 		}
 
-		if (variableThreads != null) {
-			for (ADMMWorkerThread variableThread : variableThreads) {
-				variableThread.doWork = false;
-				variableThread.done = true;
-				variableThread.interrupt();
+		if (consensusPartialThreads != null) {
+			for (ADMMWorkerThread consensusPartialsThread : consensusPartialThreads) {
+				consensusPartialsThread.doWork = false;
+				consensusPartialsThread.done = true;
+				consensusPartialsThread.interrupt();
 				try {
-					variableThread.join();
+					consensusPartialsThread.join();
 				} catch (InterruptedException ex) {
 					// Just give up.
 				}
 			}
-			variableThreads.clear();
-			variableThreads = null;
+			consensusPartialThreads.clear();
+			consensusPartialThreads = null;
+		}
+
+		if (primalResidualsThreads != null) {
+			for (ADMMWorkerThread primalResidualssThread : primalResidualsThreads) {
+				primalResidualssThread.doWork = false;
+				primalResidualssThread.done = true;
+				primalResidualssThread.interrupt();
+				try {
+					primalResidualssThread.join();
+				} catch (InterruptedException ex) {
+					// Just give up.
+				}
+			}
+			primalResidualsThreads.clear();
+			primalResidualsThreads = null;
 		}
 	}
 
-	public IterationResult iteration(ADMMTermStore termStore, double[] consensusValues) {
-		this.consensusValues = consensusValues;
+	public ConsensusPartials iteration(ADMMTermStore termStore, double[] consensusValues) {
+		// TEST
+		System.err.println("TEST4: " + consensusValues[0]);
 
-		double primalResInc = 0.0;
-		double dualResInc = 0.0;
-		double AxNormInc = 0.0;
-		double BzNormInc = 0.0;
-		double AyNormInc = 0.0;
-		double lagrangePenalty = 0.0;
-		double augmentedLagrangePenalty = 0.0;
+		this.consensusValues = consensusValues;
 
 		// Solve each local function.
 		minBarrier.reset();
@@ -188,46 +214,75 @@ public class ADMMReasonerWorker {
 			throw new RuntimeException("Broken barrier during min", ex);
 		}
 
-		// Update consensus values.
-		variableBarrier.reset();
-		for (ADMMWorkerThread thread : variableThreads) {
+		// Compute consensus partials.
+		consensusPartialBarrier.reset();
+		for (ADMMWorkerThread thread : consensusPartialThreads) {
 			thread.doWork = true;
 			thread.interrupt();
 		}
 
 		try {
-			variableBarrier.await();
+			consensusPartialBarrier.await();
 		} catch (InterruptedException ex) {
-			throw new RuntimeException("Interrupted while waiting at variable barrier", ex);
+			throw new RuntimeException("Interrupted while waiting at consensus partials barrier", ex);
 		} catch (BrokenBarrierException ex) {
-			throw new RuntimeException("Broken barrier during variable update", ex);
+			throw new RuntimeException("Broken barrier during consensus partials update", ex);
 		}
 
-		// Grab the computed values from the variable threads.
-		for (VariableUpdateThread thread : variableThreads) {
-			primalResInc += thread.primalResInc;
-			dualResInc += thread.dualResInc;
-			AxNormInc += thread.AxNormInc;
-			BzNormInc += thread.BzNormInc;
-			AyNormInc += thread.AyNormInc;
-			lagrangePenalty += thread.lagrangePenalty;
-			augmentedLagrangePenalty += thread.augmentedLagrangePenalty;
+		// Grab the computed values from the consensus partials threads.
+      consensusPartialsMessage.zero();
+		for (ConsensusPartialsThread thread : consensusPartialThreads) {
+         for (int i = 0; i < thread.consensusPartials.length; i++) {
+            consensusPartialsMessage.values[i + thread.startIndex] += thread.consensusPartials[i];
+         }
+         
+			consensusPartialsMessage.axNormInc += thread.axNormInc;
+			consensusPartialsMessage.ayNormInc += thread.ayNormInc;
 		}
 
-		return new IterationResult(primalResInc, dualResInc,
-				AxNormInc, BzNormInc, AyNormInc,
-				lagrangePenalty, augmentedLagrangePenalty,
-				consensusValues);
+		return consensusPartialsMessage;
 	}
+
+	public PrimalResidualPartials calculatePrimalResiduals(ADMMTermStore termStore, double[] consensusValues) {
+		this.consensusValues = consensusValues;
+
+      double primalResInc = 0.0;
+      double lagrangePenalty = 0.0;
+      double augmentedLagrangePenalty = 0.0;
+
+		// Compute primal redisuals.
+		primalResidualsBarrier.reset();
+		for (ADMMWorkerThread thread : primalResidualsThreads) {
+			thread.doWork = true;
+			thread.interrupt();
+		}
+
+		try {
+			primalResidualsBarrier.await();
+		} catch (InterruptedException ex) {
+			throw new RuntimeException("Interrupted while waiting at primal residuals barrier", ex);
+		} catch (BrokenBarrierException ex) {
+			throw new RuntimeException("Broken barrier during primal residuals", ex);
+		}
+
+		// Grab the computed values from the threads.
+		for (PrimalResidualsThread thread : primalResidualsThreads) {
+         primalResInc += thread.primalResInc;
+         lagrangePenalty += thread.lagrangePenalty;
+         augmentedLagrangePenalty += thread.augmentedLagrangePenalty;
+		}
+
+		return new PrimalResidualPartials(primalResInc, lagrangePenalty, augmentedLagrangePenalty);
+   }
 
 	/**
 	 * There are a couple tasks that can be parallelized, and they share similar workflows.
 	 */
 	private abstract class ADMMWorkerThread extends Thread {
-		private int startIndex;
-		private int endIndex;
+		public final int startIndex;
+		public final int endIndex;
 		// Wait at the barrier after any work.
-		private CyclicBarrier barrier;
+		private final CyclicBarrier barrier;
 
 		public volatile boolean done;
 		public volatile boolean doWork;
@@ -295,66 +350,74 @@ public class ADMMReasonerWorker {
 		}
 	}
 
-	private class VariableUpdateThread extends ADMMWorkerThread {
-		public volatile double primalResInc = 0.0;
-		public volatile double dualResInc = 0.0;
-		public volatile double AxNormInc = 0.0;
-		public volatile double BzNormInc = 0.0;
-		public volatile double AyNormInc = 0.0;
-		public volatile double lagrangePenalty = 0.0;
-		public volatile double augmentedLagrangePenalty = 0.0;
+   /**
+    * Compute totals that will contribute to the new consensus.
+    */
+	private class ConsensusPartialsThread extends ADMMWorkerThread {
+		public volatile double axNormInc;
+		public volatile double ayNormInc;
+      // The index into this + startIndex = global variable index.
+      public volatile double[] consensusPartials;
 
-		public VariableUpdateThread(int startIndex, int endIndex, CyclicBarrier barrier) {
+		public ConsensusPartialsThread(int startIndex, int endIndex, CyclicBarrier barrier) {
 			super(startIndex, endIndex, barrier);
 
-			primalResInc = 0.0;
-			dualResInc = 0.0;
-			AxNormInc = 0.0;
-			BzNormInc = 0.0;
-			AyNormInc = 0.0;
-			lagrangePenalty = 0.0;
-			augmentedLagrangePenalty = 0.0;
+			axNormInc = 0.0;
+			ayNormInc = 0.0;
+         consensusPartials = new double[endIndex - startIndex];
 		}
 
 		@Override
 		protected void prework() {
-			primalResInc = 0.0;
-			dualResInc = 0.0;
-			AxNormInc = 0.0;
-			BzNormInc = 0.0;
-			AyNormInc = 0.0;
-			lagrangePenalty = 0.0;
-			augmentedLagrangePenalty = 0.0;
+			axNormInc = 0.0;
+			ayNormInc = 0.0;
+
+         for (int i = 0; i < consensusPartials.length; i++) {
+            consensusPartials[i] = 0;
+         }
 		}
 
 		@Override
 		protected void work(int variableIndex) {
-			// First pass computes newConsensusValue and dual residual fom all local copies.
-			double total = 0.0;
-			for (LocalVariable localVariable : termStore.getLocalVariables(variableIndex)) {
-				total += localVariable.getValue() + localVariable.getLagrange() / stepSize;
+			for (int localVarIndex = 0; localVarIndex < termStore.getLocalVariables(variableIndex).size(); localVarIndex++) {
+				LocalVariable localVariable = termStore.getLocalVariables(variableIndex).get(localVarIndex);
 
-				AxNormInc += localVariable.getValue() * localVariable.getValue();
-				AyNormInc += localVariable.getLagrange() * localVariable.getLagrange();
+				consensusPartials[variableIndex - startIndex] += localVariable.getValue() + localVariable.getLagrange() / stepSize;
+				axNormInc += localVariable.getValue() * localVariable.getValue();
+				ayNormInc += localVariable.getLagrange() * localVariable.getLagrange();
 			}
+		}
+	}
 
-			double newConsensusValue = total / termStore.getLocalVariables(variableIndex).size();
-			if (newConsensusValue < LOWER_BOUND) {
-				newConsensusValue = LOWER_BOUND;
-			} else if (newConsensusValue > UPPER_BOUND) {
-				newConsensusValue = UPPER_BOUND;
-			}
+   /**
+    * Compute primal residuals.
+    */
+	private class PrimalResidualsThread extends ADMMWorkerThread {
+		public volatile double primalResInc;
+		public volatile double lagrangePenalty;
+		public volatile double augmentedLagrangePenalty;
 
-			double diff = consensusValues[variableIndex] - newConsensusValue;
-			// Residual is diff^2 * number of local variables mapped to consensusValues element.
-			dualResInc += diff * diff * termStore.getLocalVariables(variableIndex).size();
-			BzNormInc += newConsensusValue * newConsensusValue * termStore.getLocalVariables(variableIndex).size();
+		public PrimalResidualsThread(int startIndex, int endIndex, CyclicBarrier barrier) {
+			super(startIndex, endIndex, barrier);
 
-			consensusValues[variableIndex] = newConsensusValue;
+         primalResInc = 0.0;
+         lagrangePenalty = 0.0;
+         augmentedLagrangePenalty = 0.0;
+		}
 
-			// Second pass computes primal residuals.
-			for (LocalVariable localVariable : termStore.getLocalVariables(variableIndex)) {
-				diff = localVariable.getValue() - newConsensusValue;
+		@Override
+		protected void prework() {
+         primalResInc = 0.0;
+         lagrangePenalty = 0.0;
+         augmentedLagrangePenalty = 0.0;
+		}
+
+		@Override
+		protected void work(int variableIndex) {
+			for (int localVarIndex = 0; localVarIndex < termStore.getLocalVariables(variableIndex).size(); localVarIndex++) {
+				LocalVariable localVariable = termStore.getLocalVariables(variableIndex).get(localVarIndex);
+
+				double diff = localVariable.getValue() - consensusValues[variableIndex];
 				primalResInc += diff * diff;
 
 				// Compute Lagrangian penalties

@@ -18,6 +18,7 @@
 package org.linqs.psl.application.inference.distributed.message;
 
 import org.linqs.psl.application.inference.distributed.NetUtils;
+import org.linqs.psl.reasoner.admm.term.ADMMTermStore;
 import org.linqs.psl.reasoner.function.AtomFunctionVariable;
 
 import java.nio.ByteBuffer;
@@ -32,6 +33,7 @@ import java.util.List;
  */
 public class VariableList extends Message {
 	private String[] variables;
+   private int[] localCounts;
 	private int numLocalVariables;
 
 	public VariableList() {
@@ -40,11 +42,17 @@ public class VariableList extends Message {
    /**
     * Note that we are storing the string representation of the atom associated with a variable.
     */
-	public VariableList(AtomFunctionVariable[] rawVariables, int numLocalVariables) {
-      this.numLocalVariables = numLocalVariables;
+	public VariableList(ADMMTermStore termStore) {
+      this.numLocalVariables = termStore.getNumLocalVariables();
 
+      localCounts = new int[termStore.getNumGlobalVariables()];
+      for (int i = 0; i < localCounts.length; i++) {
+         localCounts[i] = termStore.getLocalVariables(i).size();
+      }
+
+      AtomFunctionVariable[] rawVariables = termStore.getGlobalVariables();
 		variables = new String[rawVariables.length];
-      for (int i = 0; i < rawVariables.length; i++) {
+      for (int i = 0; i < variables.length; i++) {
          variables[i] = rawVariables[i].getAtom().toString();
       }
 	}
@@ -55,6 +63,10 @@ public class VariableList extends Message {
 
 	public String getVariable(int i) {
 		return variables[i];
+	}
+
+	public int getLocalCount(int i) {
+		return localCounts[i];
 	}
 
 	public int getNumLocalVariables() {
@@ -71,12 +83,15 @@ public class VariableList extends Message {
          totalStringSize += stringBuffer.limit();
       }
 
-		// The number of strings, the number of local vairbales, and all the strings.
-		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE * 2 + totalStringSize);
+		// The number of strings, the number of local vairbales, the local variable counts, and all the strings.
+		ByteBuffer buffer = ByteBuffer.allocate(NetUtils.INT_SIZE * (2 + variables.length) + totalStringSize);
 		buffer.clear();
 		buffer.putInt(numLocalVariables);
 		buffer.putInt(variables.length);
 
+      for (int localCount : localCounts) {
+         buffer.putInt(localCount);
+      }
 
 		for (ByteBuffer stringBuffer : stringBuffers) {
 			buffer.put(stringBuffer);
@@ -90,6 +105,11 @@ public class VariableList extends Message {
 	protected void deserializePayload(ByteBuffer payload) {
 		numLocalVariables = payload.getInt();
 		int size = payload.getInt();
+
+      localCounts = new int[size];
+		for (int i = 0; i < size; i++) {
+         localCounts[i] = payload.getInt();
+      }
 
 		variables = new String[size];
 		for (int i = 0; i < size; i++) {

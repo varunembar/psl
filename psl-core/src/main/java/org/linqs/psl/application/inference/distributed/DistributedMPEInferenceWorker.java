@@ -104,25 +104,25 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	protected GroundRuleStore groundRuleStore;
 	protected ADMMTermStore termStore;
 
-   // We cannot create db before inserting data, so we need to keep track of db params.
-   private Database database;
-   private Partition dbWrite;
-   private Set<StandardPredicate> dbToClose;
-   private Partition[] dbRead;
+	// We cannot create db before inserting data, so we need to keep track of db params.
+	private Database database;
+	private Partition dbWrite;
+	private Set<StandardPredicate> dbToClose;
+	private Partition[] dbRead;
 
 	// TODO(eriq): Kids through config?
 	// TODO(eriq): Get model and database over wire?
-   // TODO(eriq): Better way of passing db params.
+	// TODO(eriq): Better way of passing db params.
 	public DistributedMPEInferenceWorker(Model model, DataStore dataStore, ConfigBundle config,
-         Partition dbWrite, Set<StandardPredicate> dbToClose, Partition... dbRead) {
+			Partition dbWrite, Set<StandardPredicate> dbToClose, Partition... dbRead) {
 		this.model = model;
 		this.dataStore = dataStore;
 		this.config = config;
 
-      database = null;
-      this.dbWrite = dbWrite;
-      this.dbToClose = dbToClose;
-      this.dbRead = dbRead;
+		database = null;
+		this.dbWrite = dbWrite;
+		this.dbToClose = dbToClose;
+		this.dbRead = dbRead;
 
 		try {
 			server = new ServerSocket(PORT);
@@ -155,7 +155,7 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 		ByteBuffer buffer = null;
 		boolean done = false;
-      boolean initialized = false;
+		boolean initialized = false;
 		double[] consensusValues = null;
 
 		// Accept messages from the master until it closes.
@@ -169,21 +169,26 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			log.debug("Recieved message from master: " + message);
 
 			if (message instanceof Initialize) {
-            // Do nothing special, just Ack.
+				// Do nothing special, just Ack.
 			} else if (message instanceof LoadData) {
 				loadData((LoadData)message);
-            initialize();
-            initialized = true;
+				initialize();
+				initialized = true;
 			} else if (message instanceof InitADMM) {
-            // It is possible we have not initilaized.
-            if (!initialized) {
-               initialize();
-            }
+				// It is possible we have not initilaized.
+				if (!initialized) {
+					initialize();
+					initialized = true;
+				}
 
 				reasoner = new ADMMReasonerWorker(config, termStore);
 				response = collectVariables();
 			} else if (message instanceof ConsensusUpdate) {
 				consensusValues = ((ConsensusUpdate)message).getValues();
+
+            if (((ConsensusUpdate)message).calcPrimalResidals) {
+               response = reasoner.calculatePrimalResiduals(termStore, consensusValues);
+            }
 			} else if (message instanceof IterationStart) {
 				response = reasoner.iteration(termStore, consensusValues);
 			} else if (message instanceof Close) {
@@ -206,30 +211,29 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		close();
 	}
 
-   private void loadData(LoadData dataMessage) {
-      Partition destPartition = dataStore.getPartition(dataMessage.partition);
+	private void loadData(LoadData dataMessage) {
+		Partition destPartition = dataStore.getPartition(dataMessage.partition);
 
-      StandardPredicate destPredicate = null;
-      for (StandardPredicate predicate : dataStore.getRegisteredPredicates()) {
-         if (predicate.getName().equals(dataMessage.predicate)) {
-            destPredicate = predicate;
-            break;
-         }
-      }
+		StandardPredicate destPredicate = null;
+		for (StandardPredicate predicate : dataStore.getRegisteredPredicates()) {
+			if (predicate.getName().equals(dataMessage.predicate)) {
+				destPredicate = predicate;
+				break;
+			}
+		}
 
-      if (destPredicate == null) {
-         throw new RuntimeException("Could not locate destination predicate: " + dataMessage.predicate);
-      }
+		if (destPredicate == null) {
+			throw new RuntimeException("Could not locate destination predicate: " + dataMessage.predicate);
+		}
 
-      Inserter inserter = dataStore.getInserter(destPredicate, destPartition);
-      for (String[] row : dataMessage.data) {
-         inserter.insert(row);
-      }
-   }
+		Inserter inserter = dataStore.getInserter(destPredicate, destPartition);
+		for (String[] row : dataMessage.data) {
+			inserter.insert(row);
+		}
+	}
 
 	private VariableList collectVariables() {
-		AtomFunctionVariable[] variables = termStore.getGlobalVariables();
-		return new VariableList(variables, termStore.getNumLocalVariables());
+		return new VariableList(termStore);
 	}
 
 	/**
@@ -239,8 +243,8 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	private void initialize() {
 		TermGenerator termGenerator = new ADMMTermGenerator(config);
 
-      // All data should have been loaded by now.
-      database = dataStore.getDatabase(dbWrite, dbToClose, dbRead);
+		// All data should have been loaded by now.
+		database = dataStore.getDatabase(dbWrite, dbToClose, dbRead);
 
 		log.debug("Creating persisted atom mannager.");
 		atomManager = new PersistedAtomManager(database);
@@ -260,10 +264,10 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 		model = null;
 		config = null;
 
-      if (database != null) {
-         database.close();
-         database = null;
-      }
+		if (database != null) {
+			database.close();
+			database = null;
+		}
 
 		if (reasoner != null) {
 			reasoner.close();

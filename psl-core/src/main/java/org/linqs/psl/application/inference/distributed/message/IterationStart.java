@@ -22,18 +22,5 @@ import java.nio.ByteBuffer;
 /**
  * A message indicating that the worker should begin an iteration of ADMM.
  */
-public class IterationStart extends Message {
-	@Override
-	protected byte[] serializePayload() {
-		return new byte[0];
-	}
-
-	@Override
-	protected void deserializePayload(ByteBuffer payload) {
-	}
-
-	@Override
-	public String toString() {
-		return "IterationStart";
-	}
+public class IterationStart extends Blank {
 }

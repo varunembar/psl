@@ -22,18 +22,5 @@ import java.nio.ByteBuffer;
 /**
  * A message indicating that the worker should initilize.
  */
-public class Initialize extends Message {
-	@Override
-	protected byte[] serializePayload() {
-		return new byte[0];
-	}
-
-	@Override
-	protected void deserializePayload(ByteBuffer payload) {
-	}
-
-	@Override
-	public String toString() {
-		return "Initialize";
-	}
+public class Initialize extends Blank {
 }

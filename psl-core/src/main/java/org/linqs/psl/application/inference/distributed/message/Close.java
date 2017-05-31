@@ -22,18 +22,5 @@ import java.nio.ByteBuffer;
 /**
  * A message indicating that there is no more work and the worker should be prepard to terminate the connection..
  */
-public class Close extends Message {
-	@Override
-	protected byte[] serializePayload() {
-		return new byte[0];
-	}
-
-	@Override
-	protected void deserializePayload(ByteBuffer payload) {
-	}
-
-	@Override
-	public String toString() {
-		return "Close";
-	}
+public class Close extends Blank {
 }

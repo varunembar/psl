@@ -20,7 +20,21 @@ package org.linqs.psl.application.inference.distributed.message;
 import java.nio.ByteBuffer;
 
 /**
- * A message indicating that the worker should initilize ADMM for processing.
+ * A message that contains no actual data.
+ * The class of the message is the important part.
  */
-public class InitADMM extends Blank {
+public abstract class Blank extends Message {
+	@Override
+	protected byte[] serializePayload() {
+		return new byte[0];
+	}
+
+	@Override
+	protected void deserializePayload(ByteBuffer payload) {
+	}
+
+	@Override
+	public String toString() {
+		return "Blank (" + this.getClass().getName() + ")";
+	}
 }

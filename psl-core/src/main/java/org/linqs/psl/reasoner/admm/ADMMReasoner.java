@@ -274,8 +274,12 @@ public class ADMMReasoner implements Reasoner {
 			}
 
 			if (iter % (50 * stopCheck) == 0) {
-				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", new Object[] {iter, primalRes, dualRes});
+				/* TEST
+				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
 				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
+				*/
+				log.info("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
+				log.info("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
 			}
 
 			iter++;
