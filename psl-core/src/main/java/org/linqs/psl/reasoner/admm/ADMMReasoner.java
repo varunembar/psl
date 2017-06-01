@@ -226,10 +226,10 @@ public class ADMMReasoner implements Reasoner {
 		double epsilonAbsTerm = Math.sqrt(termStore.getNumLocalVariables()) * epsilonAbs;
 		double AxNorm = 0.0, BzNorm = 0.0, AyNorm = 0.0;
 		boolean check = false;
-		int iter = 1;
+		int iteration = 1;
 
-		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iter < maxIter) {
-			check = iter % stopCheck == 0;
+		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iteration <= maxIter) {
+			check = iteration % stopCheck == 0;
 			for (ADMMTask task : tasks) {
 				task.check = check;
 			}
@@ -273,18 +273,12 @@ public class ADMMReasoner implements Reasoner {
 				epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(AyNorm);
 			}
 
-			// TEST
-         // if (iter % (50 * stopCheck) == 0) {
-			if (1 == 1 || iter % (50 * stopCheck) == 0) {
-				/* TEST
-				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
+			if (iteration % (50 * stopCheck) == 0) {
+				log.trace("Residuals at iteration {} -- Primal: {} -- Dual: {}", iteration, primalRes, dualRes);
 				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
-				*/
-				log.info("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
-				log.info("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
 			}
 
-			iter++;
+			iteration++;
 		}
 
 		// Notify threads the optimization is complete
@@ -304,7 +298,7 @@ public class ADMMReasoner implements Reasoner {
 		threadPool.shutdownAndWait();
 
 		log.info("Optimization completed in {} iterations. " +
-				"Primal res.: {}, Dual res.: {}", new Object[] {iter, primalRes, dualRes});
+				"Primal res.: {}, Dual res.: {}", iteration - 1, primalRes, dualRes);
 
 		// Updates variables
 		termStore.updateVariables(consensusValues);
@@ -380,7 +374,7 @@ public class ADMMReasoner implements Reasoner {
 
 		@Override
 		public void run() {
-			int iter = 1;
+			int iteration = 1;
 			while (true) {
 				awaitUninterruptibly(workerStartBarrier);
 				if (done) {
@@ -423,11 +417,7 @@ public class ADMMReasoner implements Reasoner {
 					}
 
 					double newConsensusValue = total / termStore.getLocalVariables(i).size();
-					if (newConsensusValue < LOWER_BOUND) {
-						newConsensusValue = LOWER_BOUND;
-					} else if (newConsensusValue > UPPER_BOUND) {
-						newConsensusValue = UPPER_BOUND;
-					}
+					newConsensusValue = Math.max(Math.min(newConsensusValue, UPPER_BOUND), LOWER_BOUND);
 
 					if (check) {
 						double diff = consensusValues[i] - newConsensusValue;

@@ -236,25 +236,6 @@ public class ADMMReasonerMaster {
 		return workers.submit(updateMessages);
 	}
 
-	/**
-	 * Go through all the workers and count the number of times each variable is used.
-	 * We will need then when resolving consensus values.
-	 */
-	private int[] computeVariableWorkerCount() {
-		int[] variableWorkerCount = new int[allVariables.size()];
-		for (int i = 0; i < variableWorkerCount.length; i++) {
-			variableWorkerCount[i] = 0;
-		}
-
-		for (int workerId = 0; workerId < workerVariableMapping.length; workerId++) {
-			for (int remoteIndex = 0; remoteIndex < workerVariableMapping[workerId].length; remoteIndex++) {
-				variableWorkerCount[workerVariableMapping[workerId][remoteIndex]]++;
-			}
-		}
-
-		return variableWorkerCount;
-	}
-
 	// @Override
 	public void optimize() {
 		double[] consensusValues = collectVariables();
@@ -263,10 +244,6 @@ public class ADMMReasonerMaster {
 		// Update (initialize) the consunsus values for each worker.
 		// Do not request primal residual calculation.
 		updateWorkerConsensus(consensusValues, false);
-
-		// The number of workers that use a specific variable.
-		// We need this when updating the consensus value.
-		int[] variableWorkerCount = computeVariableWorkerCount();
 
 		// Perform inference.
 		double primalRes = Double.POSITIVE_INFINITY;
@@ -280,9 +257,9 @@ public class ADMMReasonerMaster {
 		double lagrangePenalty = 0.0;
 		double augmentedLagrangePenalty = 0.0;
 
-		int iter = 1;
+		int iteration = 1;
 
-		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iter <= maxIter) {
+		while ((primalRes > epsilonPrimal || dualRes > epsilonDual) && iteration <= maxIter) {
 			primalRes = 0.0;
 			dualRes = 0.0;
 			axNorm = 0.0;
@@ -319,12 +296,7 @@ public class ADMMReasonerMaster {
 			// Average the consensus values over the number of local copies.
 			for (int i = 0; i < newConsensusValues.length; i++) {
 				newConsensusValues[i] /= localVariableCount.get(i).intValue();
-
-				if (newConsensusValues[i] < LOWER_BOUND) {
-					newConsensusValues[i] = LOWER_BOUND;
-				} else if (newConsensusValues[i] > UPPER_BOUND) {
-					newConsensusValues[i] = UPPER_BOUND;
-				}
+				newConsensusValues[i] = Math.max(Math.min(newConsensusValues[i], UPPER_BOUND), LOWER_BOUND);
 			}
 
 			// Calculate the dual residual.
@@ -358,16 +330,16 @@ public class ADMMReasonerMaster {
 			epsilonPrimal = epsilonAbsTerm + epsilonRel * Math.max(Math.sqrt(axNorm), Math.sqrt(bzNorm));
 			epsilonDual = epsilonAbsTerm + epsilonRel * Math.sqrt(ayNorm);
 
-			if (iter % 50 == 0) {
-				log.trace("Residuals at iter {} -- Primal: {} -- Dual: {}", iter, primalRes, dualRes);
+			if (iteration % 50 == 0) {
+				log.trace("Residuals at iteration {} -- Primal: {} -- Dual: {}", iteration, primalRes, dualRes);
 				log.trace("--------- Epsilon primal: {} -- Epsilon dual: {}", epsilonPrimal, epsilonDual);
 			}
 
-			iter++;
+			iteration++;
 		}
 
 		log.info("Optimization completed in {} iterations. " +
-				"Primal res.: {}, Dual res.: {}", new Object[] {iter, primalRes, dualRes});
+				"Primal res.: {}, Dual res.: {}", iteration - 1, primalRes, dualRes);
 
 		// Update variables
 		log.info("Writing results to database.");
