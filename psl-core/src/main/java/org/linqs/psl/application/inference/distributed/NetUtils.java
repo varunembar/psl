@@ -59,7 +59,7 @@ public class NetUtils {
 
 		// Send out.
 		try {
-			log.debug("Sending message ({})[{}] to {}", message, buffer.limit(), socket.getRemoteAddress());
+			log.trace("Sending message ({})[{}] to {}", message, buffer.limit(), socket.getRemoteAddress());
 
 			while (buffer.hasRemaining()) {
 				socket.write(buffer);
@@ -76,7 +76,7 @@ public class NetUtils {
 
 		// Send out.
 		try {
-			log.debug("Sending message ({})[{}] to an out stream", message, buffer.limit());
+			log.trace("Sending message ({})[{}] to an out stream", message, buffer.limit());
 
 			out.write(buffer.array(), 0, buffer.limit());
 			out.flush();
@@ -133,7 +133,7 @@ public class NetUtils {
 				}
 			}
 
-			log.debug("Recieved message (size: {}) from {}", payloadSize + sizeBuffer.capacity(), socket.getRemoteAddress());
+			log.trace("Recieved message (size: {}) from {}", payloadSize + sizeBuffer.capacity(), socket.getRemoteAddress());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}
@@ -177,7 +177,7 @@ public class NetUtils {
 			}
 			buffer.limit(payloadSize);
 
-			log.debug("Recieved message (size: {}) from an in stream", payloadSize + sizeBuffer.limit());
+			log.trace("Recieved message (size: {}) from an in stream", payloadSize + sizeBuffer.limit());
 		} catch (IOException ex) {
 			throw new RuntimeException("Failed to read message payload.", ex);
 		}

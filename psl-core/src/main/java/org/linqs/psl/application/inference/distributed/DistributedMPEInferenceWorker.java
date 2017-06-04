@@ -90,19 +90,16 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	public static final String PORT_KEY = CONFIG_PREFIX + ".port";
 	public static final int PORT = 12345;
 
-	// TODO(eriq): For now, only one reasoner is allowed.
+	private Model model;
+	private DataStore dataStore;
+	private ConfigBundle config;
 
-	// TODO(eriq): protected or private
-	protected Model model;
-	protected DataStore dataStore;
-	protected ConfigBundle config;
+	private ServerSocket server;
 
-	protected ServerSocket server;
-
-	protected ADMMReasonerWorker reasoner;
-	protected PersistedAtomManager atomManager;
-	protected GroundRuleStore groundRuleStore;
-	protected ADMMTermStore termStore;
+	private ADMMReasonerWorker reasoner;
+	private PersistedAtomManager atomManager;
+	private GroundRuleStore groundRuleStore;
+	private ADMMTermStore termStore;
 
 	// We cannot create db before inserting data, so we need to keep track of db params.
 	private Database database;
@@ -160,13 +157,13 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 
 		// Accept messages from the master until it closes.
 		while (!done) {
-			log.debug("Waiting for messages from master");
+			log.trace("Waiting for messages from master");
 
 			buffer = NetUtils.readMessage(inStream, buffer);
 			Message message = Message.deserialize(buffer);
 			Message response = new Ack(true);
 
-			log.debug("Recieved message from master: " + message);
+			log.trace("Recieved message from master: " + message);
 
 			if (message instanceof Initialize) {
 				// Do nothing special, just Ack.
@@ -208,7 +205,14 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 			log.warn("Error while closing master connection... ignoring.", ex);
 		}
 
-		close();
+		long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+		int numTerms = termStore.size();
+		int numGlobalVariables = termStore.getNumGlobalVariables();
+		int numLocalVariables = termStore.getNumLocalVariables();
+
+		log.debug("Worker inference complete.");
+		log.debug("Stats -- Memory (Bytes): {}, Terms: {}, Global Variables: {} Local Variables: {}",
+				memoryUsed, numTerms, numGlobalVariables, numLocalVariables);
 	}
 
 	private void loadData(LoadData dataMessage) {
@@ -263,15 +267,26 @@ public class DistributedMPEInferenceWorker implements ModelApplication {
 	public void close() {
 		model = null;
 		config = null;
+		atomManager = null;
 
-		if (database != null) {
-			database.close();
-			database = null;
+		if (termStore != null) {
+			termStore.close();
+			termStore = null;
+		}
+
+		if (groundRuleStore != null) {
+			groundRuleStore.close();
+			groundRuleStore = null;
 		}
 
 		if (reasoner != null) {
 			reasoner.close();
 			reasoner = null;
+		}
+
+		if (database != null) {
+			database.close();
+			database = null;
 		}
 	}
 

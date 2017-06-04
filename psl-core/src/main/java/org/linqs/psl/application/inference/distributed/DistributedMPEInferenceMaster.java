@@ -106,15 +106,13 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		log.debug("Workers initialized");
 
 		if (partitionData != null) {
-			log.debug("Sending Data To Workers");
+			log.trace("Sending Data To Workers");
 
 			List<Message> loadDataMessages = new ArrayList<Message>();
 			for (String[][] data : partitionData) {
 				loadDataMessages.add(new LoadData(partition, predicate, data));
 			}
 			workers.blockingSubmit(loadDataMessages);
-
-			log.debug("Data Sent To Workers");
 		}
 
 		ADMMReasonerMaster reasoner = new ADMMReasonerMaster(config, workers, atomManager);
@@ -135,6 +133,10 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		closeWorkers(workers);
 		log.debug("Workers closed");
 
+		long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+		log.debug("Master inference complete.");
+		log.debug("Stats -- Memory (Bytes): {}", memoryUsed);
+
 		return null;
 	}
 
@@ -154,7 +156,7 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 
 	@Override
 	public void close() {
-		model=null;
+		model = null;
 		db = null;
 		config = null;
 	}

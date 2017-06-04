@@ -151,6 +151,9 @@ public class MPEInference implements ModelApplication {
 		reasoner.optimize(termStore);
 		log.info("Inference complete. Writing results to Database.");
 
+		long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+		log.debug("Stats -- Memory (Bytes): {}", memoryUsed);
+
 		// Commits the RandomVariableAtoms back to the Database.
 		int count = 0;
 		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
@@ -161,6 +164,7 @@ public class MPEInference implements ModelApplication {
 		double incompatibility = GroundRules.getTotalWeightedIncompatibility(groundRuleStore.getCompatibilityRules());
 		double infeasibility = GroundRules.getInfeasibilityNorm(groundRuleStore.getConstraintRules());
 		int size = groundRuleStore.size();
+
 		return new MemoryFullInferenceResult(incompatibility, infeasibility, count, size);
 	}
 
