@@ -708,6 +708,65 @@ public class RDBMSDatabase implements Database {
 		}
 	}
 
+   // Hack to get a quick atom dump when we have many 500K+ atoms.
+	public ResultList executeQueryHack(DatabaseQuery query, int page) {
+		if (closed)
+			throw new IllegalStateException("Cannot perform query on database that was closed.");
+
+		executePendingStatements();
+
+		Formula f = query.getFormula();
+		VariableAssignment partialGrounding = query.getPartialGrounding();
+		Set<Variable> projectTo = query.getProjectionSubset();
+
+		VariableTypeMap varTypes = f.collectVariables(new VariableTypeMap());
+		if (projectTo.size() == 0) {
+			projectTo.addAll(varTypes.getVariables());
+			projectTo.removeAll(partialGrounding.getVariables());
+		}
+
+		// Construct query from formula
+		Formula2SQL sqler = new Formula2SQL(partialGrounding, projectTo, this, false);
+		String queryString = sqler.getSQLHack(f, page);
+		log.trace(queryString);
+
+		// Create and initialize ResultList
+		int i = 0;
+		RDBMSResultList results = new RDBMSResultList(projectTo.size());
+		for (int varIndex = 0; varIndex < query.getNumVariables(); varIndex++)
+			if (projectTo.contains(query.getVariable(varIndex)))
+				results.setVariable(query.getVariable(varIndex), i++);
+
+		try  {
+			Statement stmt = dbConnection.createStatement();
+			try {
+				ResultSet rs = stmt.executeQuery(queryString);
+				try {
+					while (rs.next()) {
+						Constant[] res = new Constant[projectTo.size()];
+						for (Variable var : projectTo) {
+							i = results.getPos(var);
+							if (partialGrounding.hasVariable(var)) {
+								res[i] = partialGrounding.getVariable(var);
+							} else {
+								res[i] = extractConstantFromResult(rs, var.getName(), varTypes.getType(var));
+							}
+						}
+						results.addResult(res);
+					}
+				} finally {
+					rs.close();
+				}
+			} finally {
+				stmt.close();
+			}
+		} catch (SQLException e) {
+			throw new RuntimeException("Error executing database query.", e);
+		}
+		log.trace("Number of results: {}",results.size());
+		return results;
+	}
+
 	@Override
 	public ResultList executeQuery(DatabaseQuery query) {
 		if (closed)

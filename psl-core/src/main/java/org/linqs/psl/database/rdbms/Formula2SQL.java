@@ -60,12 +60,17 @@ public class Formula2SQL extends AbstractFormulaTraverser {
 
 	public Formula2SQL(VariableAssignment pg, Set<Variable> proj,
 			RDBMSDatabase db) {
+	   this(pg, proj, db, true);
+   }
+
+	public Formula2SQL(VariableAssignment pg, Set<Variable> proj,
+			RDBMSDatabase db, boolean distinct) {
 		partialGrounding = pg;
 		projection = proj;
 		joins = new HashMap<Variable, String>();
 		database = db;
 		query = new SelectQuery();
-		query.setIsDistinct(true);
+		query.setIsDistinct(distinct);
 		functionalAtoms = new ArrayList<Atom>(4);
 		tableCounter = 1;
 		if (projection.isEmpty())
@@ -226,6 +231,21 @@ public class Formula2SQL extends AbstractFormulaTraverser {
 			visitFunctionalAtom(atom);
 		return query.validate().toString();
 	}
+
+   // HACK to get a fast atom dump.
+	public String getSQLHack(Formula f, int page) {
+		AbstractFormulaTraverser.traverse(f, this);
+		for (Atom atom : functionalAtoms)
+			visitFunctionalAtom(atom);
+
+      // HACK(eriq): Dangerous since we are not actully counting the columns.
+      query.addCustomOrderings(new CustomSql("1"), new CustomSql("2"));
+      query.setOffset(page * 10000);
+      query.setFetchNext(10000);
+
+		return query.validate().toString();
+	}
+
 	
 	public String escapeSingleQuotes(String s) {
 		return s.replaceAll("'", "''");
