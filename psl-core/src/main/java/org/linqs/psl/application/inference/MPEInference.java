@@ -36,6 +36,7 @@ import org.linqs.psl.model.atom.RandomVariableAtom;
 import org.linqs.psl.reasoner.Reasoner;
 import org.linqs.psl.reasoner.ReasonerFactory;
 import org.linqs.psl.reasoner.admm.ADMMReasonerFactory;
+import org.linqs.psl.reasoner.admm.term.ADMMTermStore;
 import org.linqs.psl.reasoner.term.TermGenerator;
 import org.linqs.psl.reasoner.term.TermStore;
 import org.slf4j.Logger;
@@ -151,8 +152,18 @@ public class MPEInference implements ModelApplication {
 		reasoner.optimize(termStore);
 		log.info("Inference complete. Writing results to Database.");
 
-		long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-		log.debug("Stats -- Memory (Bytes): {}", memoryUsed);
+		log.debug("Master inference complete.");
+
+		// TEST
+		if (termStore instanceof ADMMTermStore) {
+			long memoryUsed = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+			int numTerms = termStore.size();
+			int numGlobalVariables = ((ADMMTermStore)termStore).getNumGlobalVariables();
+			int numLocalVariables = ((ADMMTermStore)termStore).getNumLocalVariables();
+
+			log.debug("Stats -- Memory (Bytes): {}, Terms: {}, Global Variables: {} Local Variables: {}",
+					memoryUsed, numTerms, numGlobalVariables, numLocalVariables);
+		}
 
 		// Commits the RandomVariableAtoms back to the Database.
 		int count = 0;
