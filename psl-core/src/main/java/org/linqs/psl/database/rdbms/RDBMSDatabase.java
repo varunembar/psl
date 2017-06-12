@@ -708,8 +708,8 @@ public class RDBMSDatabase implements Database {
 		}
 	}
 
-   // Hack to get a quick atom dump when we have many 500K+ atoms.
-	public ResultList executeQueryHack(DatabaseQuery query, int page) {
+	// Hack to get a quick atom dump when we have many 500K+ atoms.
+	public ResultList executeQueryHack(DatabaseQuery query, int page, int numSortingColumns) {
 		if (closed)
 			throw new IllegalStateException("Cannot perform query on database that was closed.");
 
@@ -727,7 +727,7 @@ public class RDBMSDatabase implements Database {
 
 		// Construct query from formula
 		Formula2SQL sqler = new Formula2SQL(partialGrounding, projectTo, this, false);
-		String queryString = sqler.getSQLHack(f, page);
+		String queryString = sqler.getSQLHack(f, page, numSortingColumns);
 		log.trace(queryString);
 
 		// Create and initialize ResultList

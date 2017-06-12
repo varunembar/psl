@@ -60,8 +60,8 @@ public class Formula2SQL extends AbstractFormulaTraverser {
 
 	public Formula2SQL(VariableAssignment pg, Set<Variable> proj,
 			RDBMSDatabase db) {
-	   this(pg, proj, db, true);
-   }
+		this(pg, proj, db, true);
+	}
 
 	public Formula2SQL(VariableAssignment pg, Set<Variable> proj,
 			RDBMSDatabase db, boolean distinct) {
@@ -216,7 +216,7 @@ public class Formula2SQL extends AbstractFormulaTraverser {
 			partitions = new ArrayList<Integer>(database.readPartitions.length);
 			// Query all of the read (and the write) partition(s) belonging to the database
 			for (int i = 0; i < database.readPartitions.length; i++)
-			    partitions.add(database.readPartitions[i].getID());
+				partitions.add(database.readPartitions[i].getID());
 			partitions.add(database.writePartition.getID());
 
 			query.addCondition(new InCondition(new CustomSql(tableDot
@@ -232,16 +232,19 @@ public class Formula2SQL extends AbstractFormulaTraverser {
 		return query.validate().toString();
 	}
 
-   // HACK to get a fast atom dump.
-	public String getSQLHack(Formula f, int page) {
+	// HACK to get a fast atom dump.
+	public String getSQLHack(Formula f, int page, int numSortingColumns) {
 		AbstractFormulaTraverser.traverse(f, this);
 		for (Atom atom : functionalAtoms)
 			visitFunctionalAtom(atom);
 
-      // HACK(eriq): Dangerous since we are not actully counting the columns.
-      query.addCustomOrderings(new CustomSql("1"), new CustomSql("2"));
-      query.setOffset(page * 10000);
-      query.setFetchNext(10000);
+		// HACK(eriq): Dangerous since we are not actully counting the columns.
+		for (int i = 0; i < numSortingColumns; i++) {
+			query.addCustomOrderings(new CustomSql("" + (i + 1)));
+		}
+
+		query.setOffset(page * 10000);
+		query.setFetchNext(10000);
 
 		return query.validate().toString();
 	}

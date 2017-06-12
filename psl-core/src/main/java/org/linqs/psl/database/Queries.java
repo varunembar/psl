@@ -63,9 +63,9 @@ public class Queries {
 	}
 
    // HACK(eriq): Hack to get a lot (500K+) atoms.
-	public static Set<GroundAtom> getAllAtoms(Database db, Predicate p, int page) {
+	public static Set<GroundAtom> getAllAtoms(Database db, Predicate p, int page, int numSortingColumns) {
 		DatabaseQuery query = getQueryForAllAtoms(p);
-		ResultList results = ((org.linqs.psl.database.rdbms.RDBMSDatabase)db).executeQueryHack(query, page);
+		ResultList results = ((org.linqs.psl.database.rdbms.RDBMSDatabase)db).executeQueryHack(query, page, numSortingColumns);
 		Set<GroundAtom> atoms = new HashSet<GroundAtom>(results.size());
 		for (int i = 0; i < results.size(); i++)
 			atoms.add(db.getAtom(p, results.get(i)));

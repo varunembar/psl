@@ -49,7 +49,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Master for a distributed MPE Inference.
@@ -98,7 +100,8 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 	}
 
 	// TODO(eriq): Data format needs work: [worker][row][col]
-	public FullInferenceResult mpeInference(String partition, String predicate, String[][][] partitionData) {
+   // HACK)eriq): A hacky version that returns a mapping of inferred atoms to inferred values.
+	public Map<String, Double> mpeInferenceHack(String partition, String predicate, String[][][] partitionData) {
 		assert(partitionData == null || partitionData.length == workerAddresses.size());
 
 		log.debug("Initializing Workers");
@@ -137,7 +140,14 @@ public class DistributedMPEInferenceMaster implements ModelApplication {
 		log.debug("Master inference complete.");
 		log.debug("Stats -- Memory (Bytes): {}", memoryUsed);
 
-		return null;
+		log.debug("Building result map");
+		Map<String, Double> results = new HashMap<String, Double>();
+		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
+         results.put(atom.toString(), new Double(atom.getValue()));
+		}
+		log.debug("Result map complete");
+
+      return results;
 	}
 
 	private WorkerPool initWorkers() {

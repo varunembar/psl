@@ -42,6 +42,9 @@ import org.linqs.psl.reasoner.term.TermStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Infers the most-probable explanation (MPE) state of the
  * {@link RandomVariableAtom RandomVariableAtoms} persisted in a {@link Database},
@@ -147,7 +150,8 @@ public class MPEInference implements ModelApplication {
 	 * @return inference results
 	 * @see DatabasePopulator
 	 */
-	public FullInferenceResult mpeInference() {
+   // HACK)eriq): A hacky version that returns a mapping of inferred atoms to inferred values.
+	public Map<String, Double> mpeInferenceHack() {
 		log.info("Beginning inference.");
 		reasoner.optimize(termStore);
 		log.info("Inference complete. Writing results to Database.");
@@ -165,6 +169,16 @@ public class MPEInference implements ModelApplication {
 					memoryUsed, numTerms, numGlobalVariables, numLocalVariables);
 		}
 
+		log.debug("Building result map");
+		Map<String, Double> results = new HashMap<String, Double>();
+		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
+         results.put(atom.toString(), new Double(atom.getValue()));
+		}
+		log.debug("Result map complete");
+
+      return results;
+
+      /*
 		// Commits the RandomVariableAtoms back to the Database.
 		int count = 0;
 		for (RandomVariableAtom atom : atomManager.getPersistedRVAtoms()) {
@@ -177,6 +191,7 @@ public class MPEInference implements ModelApplication {
 		int size = groundRuleStore.size();
 
 		return new MemoryFullInferenceResult(incompatibility, infeasibility, count, size);
+      */
 	}
 
 	public Reasoner getReasoner() {
