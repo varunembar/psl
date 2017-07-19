@@ -1,7 +1,7 @@
 /*
  * This file is part of the PSL software.
  * Copyright 2011-2015 University of Maryland
- * Copyright 2013-2015 The Regents of the University of California
+ * Copyright 2013-2017 The Regents of the University of California
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,4 +47,9 @@ public interface TermStore<E extends Term> extends Iterable<E>{
 	public int size();
 
 	public void updateWeight(WeightedGroundRule rule);
+
+	/**
+	 * Get the indicies for all terms related to a specific rule.
+	 */
+	public List<Integer> getTermIndices(WeightedGroundRule rule);
 }
