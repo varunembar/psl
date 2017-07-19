@@ -1,7 +1,7 @@
 /*
  * This file is part of the PSL software.
  * Copyright 2011-2015 University of Maryland
- * Copyright 2013-2015 The Regents of the University of California
+ * Copyright 2013-2017 The Regents of the University of California
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -154,9 +154,7 @@ public class LazyMaxLikelihoodMPE extends VotedPerceptron {
 					changedRuleWeights = false;
 				}
 
-				/* Computes the MPE state */
-				// TEST
-				// reasoner.optimize();
+				// Computes the MPE state.
 				reasoner.optimize(termStore);
 			}
 			while (eventFramework.checkToActivate() > 0);
@@ -218,9 +216,7 @@ public class LazyMaxLikelihoodMPE extends VotedPerceptron {
 				changedRuleWeights = false;
 			}
 
-			/* Computes the MPE state */
-			// TEST
-			// reasoner.optimize();
+			// Computes the MPE state,
 			reasoner.optimize(termStore);
 		}
 		while (eventFramework.checkToActivate() > 0);

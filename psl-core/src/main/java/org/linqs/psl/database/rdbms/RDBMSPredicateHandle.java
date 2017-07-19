@@ -1,7 +1,7 @@
 /*
  * This file is part of the PSL software.
  * Copyright 2011-2015 University of Maryland
- * Copyright 2013-2015 The Regents of the University of California
+ * Copyright 2013-2017 The Regents of the University of California
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,17 +20,13 @@ package org.linqs.psl.database.rdbms;
 import org.linqs.psl.model.predicate.Predicate;
 
 public interface RDBMSPredicateHandle {
-
 	public Predicate predicate();
-	
+
 	public String tableName();
-	
+
 	public String[] argumentColumns();
-	
+
 	public String partitionColumn();
-	
+
 	public String valueColumn();
-	
-	public String confidenceColumn();
-	
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of the PSL software.
  * Copyright 2011-2015 University of Maryland
- * Copyright 2013-2015 The Regents of the University of California
+ * Copyright 2013-2017 The Regents of the University of California
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,11 @@
 package org.linqs.psl.database.loading;
 
 public interface Updater {
-	
 	public void set(Object... data);
 
 	public void setValue(double value, Object... data);
-	
+
 	public void setValues(double[] values, Object... data);
-	
-	public void setValue(double value, double confidence, Object... data);
-	
-	public void setValues(double[] values, double[] confidences, Object... data);
-	
+
 	public void remove(Object... data);
-	
 }
