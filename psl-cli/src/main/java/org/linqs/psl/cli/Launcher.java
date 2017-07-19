@@ -223,7 +223,9 @@ public class Launcher {
 
 			cb.setProperty(MPEInference.REASONER_KEY, new ADMMReasonerFactory());
 			MPEInference mpe = new MPEInference(model, database, cb);
-			FullInferenceResult result = mpe.mpeInference();
+         // HACK(eriq)
+			// FullInferenceResult result = mpe.mpeInference();
+			mpe.mpeInferenceHack();
 			log.info("operation::infer inference:: ::done");
 
 			// List of open predicates
