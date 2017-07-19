@@ -1,7 +1,7 @@
 /*
  * This file is part of the PSL software.
  * Copyright 2011-2015 University of Maryland
- * Copyright 2013-2015 The Regents of the University of California
+ * Copyright 2013-2017 The Regents of the University of California
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,11 +52,9 @@ public class MaxLikelihoodMPE extends VotedPerceptron {
 		}
 
 		// Computes the MPE state.
-		// TEST
-		// reasoner.optimize();
 		reasoner.optimize(termStore);
 
-		/* Computes incompatibility */
+		// Computes incompatibility.
 		for (int i = 0; i < rules.size(); i++) {
 			for (GroundRule groundRule : groundRuleStore.getGroundRules(rules.get(i))) {
 				fullExpectedIncompatibility[i] += ((WeightedGroundRule) groundRule).getIncompatibility();
@@ -77,7 +75,7 @@ public class MaxLikelihoodMPE extends VotedPerceptron {
 		fullObservedIncompatibility = new double[rules.size() + immutableRules.size()];
 		setLabeledRandomVariables();
 
-		/* Computes the observed incompatibilities and numbers of groundings */
+		// Computes the observed incompatibilities and numbers of groundings.
 		for (int i = 0; i < rules.size(); i++) {
 			for (GroundRule groundRule : groundRuleStore.getGroundRules(rules.get(i))) {
 				fullObservedIncompatibility[i] += ((WeightedGroundRule) groundRule).getIncompatibility();

@@ -171,4 +171,9 @@ public class ADMMTermStore implements TermStore<ADMMObjectiveTerm> {
 	public void updateWeight(WeightedGroundRule rule) {
 		store.updateWeight(rule);
 	}
+
+	@Override
+	public List<Integer> getTermIndices(WeightedGroundRule rule) {
+		return store.getTermIndices(rule);
+	}
 }
