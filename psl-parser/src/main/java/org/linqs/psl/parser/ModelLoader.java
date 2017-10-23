@@ -788,7 +788,9 @@ public class ModelLoader extends PSLBaseVisitor<Object> {
 
 	@Override
 	public UniqueID visitConstant(ConstantContext ctx) {
-		return data.getUniqueID(ctx.IDENTIFIER().getText());
+		String constantValue = ctx.CONSTANT_VALUE().getText();
+		constantValue = constantValue.replaceFirst("^(['\"])(.*)\\1$", "$2");
+		return data.getUniqueID(constantValue);
 	}
 
 	@Override

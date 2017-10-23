@@ -158,7 +158,8 @@ public class Launcher {
 		else {
 			ConsoleAppender appender = new ConsoleAppender();
 			appender.setName("psl-cli");
-			appender.setThreshold(Priority.INFO);
+			// HACK(eriq): Set the default log level to debug.
+			appender.setThreshold(Priority.DEBUG);
 			appender.setLayout(new PatternLayout("%-4r [%t] %-5p %c %x - %m%n"));
 			appender.setTarget(ConsoleAppender.SYSTEM_OUT);
 			appender.activateOptions();
@@ -315,6 +316,30 @@ public class Launcher {
 					.desc("Optional path for writing results to filesystem (default is STDOUT)")
 					.hasArg()
 					.argName("path")
+					.build());
+
+			// HACK(eriq): 2.1 supports this, but 2.0 will just ignore it.
+			options.addOption(Option.builder("D")
+					.argName("name=value")
+					.desc("Ignored")
+					.hasArg()
+					.numberOfArgs(2)
+					.valueSeparator('=')
+					.build());
+
+			// HACK(eriq): 2.1 supports this, but 2.0 will just ignore it.
+			options.addOption(Option.builder("ec")
+					.longOpt("eval-continuous")
+					.desc("Ignored")
+					.build());
+
+			// HACK(eriq): 2.1 supports this, but 2.0 will just ignore it.
+			options.addOption(Option.builder("ed")
+					.longOpt("eval-discrete")
+					.desc("Ignored")
+					.hasArg()
+					.argName("threshold")
+					.optionalArg(true)
 					.build());
 
 			HelpFormatter hf = new HelpFormatter();
