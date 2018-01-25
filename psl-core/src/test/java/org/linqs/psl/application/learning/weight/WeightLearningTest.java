@@ -269,6 +269,46 @@ public abstract class WeightLearningTest {
 	}
 
 	/**
+	 * A test not to actually asset anything, but to see how weight learning handles these rules.
+	 * Meant only for debugging purposes.
+	 */
+	@Test
+	public void testTest() {
+		// TEST
+		// PSLTest.initLogger("TRACE");
+		// PSLTest.initLogger();
+
+		info.model.removeRule(ruleMap.get(RULE_PRIOR));
+		// info.model.removeRule(ruleMap.get(RULE_NICE));
+		// info.model.removeRule(ruleMap.get(RULE_SYMMETRY));
+
+		double initalWeight = 100.0;
+
+		WeightedRule rule = new WeightedLogicalRule(
+				new Implication(
+					new Conjunction(
+						new QueryAtom(info.predicates.get("Person"), new Variable("A")),
+						new QueryAtom(info.predicates.get("Person"), new Variable("B")),
+						new QueryAtom(info.predicates.get("Friends"), new Variable("A"), new Variable("B")),
+						new QueryAtom(SpecialPredicate.NotEqual, new Variable("A"), new Variable("B"))
+					),
+					new Negation(new QueryAtom(info.predicates.get("Friends"), new Variable("B"), new Variable("A")))
+				),
+				initalWeight,
+				true);
+		info.model.addRule(rule);
+
+		ruleMap.get(RULE_NICE).setWeight(initalWeight);
+		ruleMap.get(RULE_SYMMETRY).setWeight(initalWeight);
+		// info.config.setProperty(org.linqs.psl.application.learning.weight.VotedPerceptron.NUM_STEPS_KEY, 1000000);
+		info.config.setProperty(org.linqs.psl.application.learning.weight.VotedPerceptron.NUM_STEPS_KEY, 1000);
+
+		WeightLearningApplication weightLearner = getWLA();
+		weightLearner.learn();
+		weightLearner.close();
+	}
+
+	/**
 	 * Assert that the rules (specified by the keys on the rule map) are in the same order as passed in.
 	 * The order should be ascending.
 	 * No ties allowed.
