@@ -48,11 +48,6 @@ public class UnweightedGroundArithmeticRule extends AbstractGroundArithmeticRule
 	}
 
 	@Override
-	public UnweightedRule getRule() {
-		return (UnweightedRule) rule;
-	}
-
-	@Override
 	public double getInfeasibility() {
 		double sum = 0.0;
 		for (int i = 0; i < coeffs.length; i++) {

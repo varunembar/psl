@@ -165,7 +165,7 @@ public abstract class WeightLearningTest {
 		info.model.clear();
 		ruleMap.clear();
 
-		WeightedRule rule = null;
+		WeightedLogicalRule rule = null;
 
 		// Always true
 		// Person('Alice') & Person(B) & ('Alice' != B) >> Friends('Alice', B)
@@ -310,10 +310,10 @@ public abstract class WeightLearningTest {
 			double weight = rule.getWeight();
 
 			if (i != 0 && MathUtils.equals(weight, lastWeight)) {
-				ruleSets.get(ruleSets.size() - 1).add(rule);
+				ruleSets.get(ruleSets.size() - 1).add((Rule)rule);
 			} else {
 				Set<Rule> newSet = new HashSet<Rule>();
-				newSet.add(rule);
+				newSet.add((Rule)rule);
 				ruleSets.add(newSet);
 			}
 
@@ -324,9 +324,9 @@ public abstract class WeightLearningTest {
 		int intraSetIndex = 0;
 
 		for (int i = 0; i < rank.length; i++) {
-			Rule expected = ruleMap.get(rank[i]);
+			WeightedRule expected = ruleMap.get(rank[i]);
 
-			if (!ruleSets.get(interSetIndex).contains(expected)) {
+			if (!ruleSets.get(interSetIndex).contains((Rule)expected)) {
 				fail(String.format("Did not find expected rule (%s) at index %d.", expected, i));
 			}
 

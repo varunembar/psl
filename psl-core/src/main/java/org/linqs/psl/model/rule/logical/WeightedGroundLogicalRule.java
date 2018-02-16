@@ -39,11 +39,6 @@ public class WeightedGroundLogicalRule extends AbstractGroundLogicalRule impleme
 	}
 
 	@Override
-	public WeightedRule getRule() {
-		return (WeightedRule)rule;
-	}
-
-	@Override
 	public boolean isSquared() {
 		return squared;
 	}
@@ -51,7 +46,7 @@ public class WeightedGroundLogicalRule extends AbstractGroundLogicalRule impleme
 	@Override
 	public double getWeight() {
 		if (Double.isNaN(weight)) {
-			return getRule().getWeight();
+			return ((WeightedLogicalRule)rule).getWeight();
 		}
 		return weight;
 	}

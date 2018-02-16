@@ -23,6 +23,6 @@ import org.linqs.psl.model.atom.GroundAtom;
  * A template for {@link UnweightedGroundRule UnweightedGroundRules},
  * which constrain the values that {@link GroundAtom GroundAtoms} can take.
  */
-public interface UnweightedRule extends Rule {
+public interface UnweightedRule {
 	
 }

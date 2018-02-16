@@ -100,7 +100,7 @@ public class PairedDualLearner extends ExpectationMaximization {
 
 		// Compute the dual incompatbility for each ground rule.
 		for (int i = 0; i < mutableRules.size(); i++) {
-			for (GroundRule groundRule : groundRuleStore.getGroundRules(mutableRules.get(i))) {
+			for (GroundRule groundRule : groundRuleStore.getGroundRules((Rule)mutableRules.get(i))) {
 				expectedIncompatibility[i] += admmReasoner.getDualIncompatibility(groundRule, (ADMMTermStore)termStore);
 			}
 		}
@@ -120,7 +120,7 @@ public class PairedDualLearner extends ExpectationMaximization {
 
 		// Computes the observed incompatibilities.
 		for (int i = 0; i < mutableRules.size(); i++) {
-			for (GroundRule groundRule : latentGroundRuleStore.getGroundRules(mutableRules.get(i))) {
+			for (GroundRule groundRule : latentGroundRuleStore.getGroundRules((Rule)mutableRules.get(i))) {
 				observedIncompatibility[i] += admmReasoner.getDualIncompatibility(groundRule, (ADMMTermStore)latentTermStore);
 			}
 		}
@@ -258,8 +258,8 @@ public class PairedDualLearner extends ExpectationMaximization {
 		if (gradient != null) {
 			for (int i = 0; i < mutableRules.size(); i++) {
 				gradient[i] = observedIncompatibility[i] - expectedIncompatibility[i];
-				if (scaleGradient && groundRuleStore.count(mutableRules.get(i)) > 0.0) {
-					gradient[i] /= groundRuleStore.count(mutableRules.get(i));
+				if (scaleGradient && groundRuleStore.count((Rule)mutableRules.get(i)) > 0.0) {
+					gradient[i] /= groundRuleStore.count((Rule)mutableRules.get(i));
 				}
 				gradient[i] += l2Regularization * weights[i] + l1Regularization;
 			}

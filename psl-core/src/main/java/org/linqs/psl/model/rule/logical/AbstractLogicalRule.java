@@ -55,7 +55,7 @@ import java.util.Set;
 /**
  * Base class for all (first order, i.e., not ground) logical rules.
  */
-public abstract class AbstractLogicalRule implements Rule {
+public abstract class AbstractLogicalRule extends Rule {
 	private static final Logger log = LoggerFactory.getLogger(AbstractLogicalRule.class);
 
 	protected Formula formula;

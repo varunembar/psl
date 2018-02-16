@@ -26,7 +26,7 @@ import org.linqs.psl.database.atom.AtomManager;
  * A Rule is responsible for instantiating GroundRules.
  * A Rule must instantiate only WeightedGroundRules or only UnweightedGroundRules.
  */
-public interface Rule {
+public abstract class Rule {
 	/**
 	 * Adds all GroundRules to a GroundRuleStore using the AtomManager
 	 * to instantiate ground atoms.
@@ -35,7 +35,7 @@ public interface Rule {
 	 * @param groundRuleStore store for new GroundRules
 	 * @return the number of ground rules generated.
 	 */
-	public int groundAll(AtomManager atomManager, GroundRuleStore groundRuleStore);
+	public abstract int groundAll(AtomManager atomManager, GroundRuleStore groundRuleStore);
 
-	public boolean isWeighted();
+	public abstract boolean isWeighted();
 }

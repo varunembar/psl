@@ -31,11 +31,6 @@ public class UnweightedGroundLogicalRule extends AbstractGroundLogicalRule
 	protected UnweightedGroundLogicalRule(UnweightedLogicalRule r, List<GroundAtom> posLiterals, List<GroundAtom> negLiterals) {
 		super(r, posLiterals, negLiterals);
 	}
-
-	@Override
-	public UnweightedRule getRule() {
-		return (UnweightedRule) rule;
-	}
 	
 	@Override
 	public double getInfeasibility() {

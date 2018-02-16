@@ -22,6 +22,7 @@ import org.linqs.psl.model.formula.Disjunction;
 import org.linqs.psl.model.formula.Formula;
 import org.linqs.psl.model.formula.Negation;
 import org.linqs.psl.model.rule.GroundRule;
+import org.linqs.psl.model.rule.Rule;
 import org.linqs.psl.reasoner.function.ConstantNumber;
 import org.linqs.psl.reasoner.function.FunctionSum;
 import org.linqs.psl.reasoner.function.FunctionSummand;
@@ -119,6 +120,11 @@ public abstract class AbstractGroundLogicalRule implements GroundRule {
 
 		return posLiterals.equals(otherRule.posLiterals)
 				&& negLiterals.equals(otherRule.negLiterals);
+	}
+
+	@Override
+	public Rule getRule() {
+		return rule;
 	}
 
 	@Override

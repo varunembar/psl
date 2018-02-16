@@ -20,9 +20,6 @@ package org.linqs.psl.model.rule;
 import org.linqs.psl.reasoner.function.FunctionTerm;
 
 public interface WeightedGroundRule extends GroundRule {
-	@Override
-	public WeightedRule getRule();
-
 	public boolean isSquared();
 
 	/**

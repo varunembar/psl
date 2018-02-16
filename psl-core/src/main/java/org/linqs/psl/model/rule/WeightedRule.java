@@ -17,7 +17,7 @@
  */
 package org.linqs.psl.model.rule;
 
-public interface WeightedRule extends Rule {
+public interface WeightedRule {
 	public boolean isSquared();
 
 	public double getWeight();

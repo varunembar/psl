@@ -76,7 +76,7 @@ import java.util.Set;
  *
  * @author Stephen Bach
  */
-public abstract class AbstractArithmeticRule implements Rule {
+public abstract class AbstractArithmeticRule extends Rule {
 	private static final Logger log = LoggerFactory.getLogger(AbstractArithmeticRule.class);
 
 	/**

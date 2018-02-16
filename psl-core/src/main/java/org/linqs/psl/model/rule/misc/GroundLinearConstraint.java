@@ -22,8 +22,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.linqs.psl.model.atom.GroundAtom;
+import org.linqs.psl.model.rule.Rule;
 import org.linqs.psl.model.rule.UnweightedGroundRule;
-import org.linqs.psl.model.rule.UnweightedRule;
 import org.linqs.psl.reasoner.function.ConstraintTerm;
 import org.linqs.psl.reasoner.function.FunctionComparator;
 import org.linqs.psl.reasoner.function.FunctionSum;
@@ -51,15 +51,15 @@ public class GroundLinearConstraint implements UnweightedGroundRule {
 	}
 
 	@Override
+	public Rule getRule() {
+		return null;
+	}
+
+	@Override
 	public Set<GroundAtom> getAtoms() {
 		Set<GroundAtom> atoms = new HashSet<GroundAtom>();
 		atoms.addAll(atoms);
 		return atoms;
-	}
-
-	@Override
-	public UnweightedRule getRule() {
-		return null;
 	}
 
 	@Override

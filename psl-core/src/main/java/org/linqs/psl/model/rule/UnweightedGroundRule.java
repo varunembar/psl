@@ -21,10 +21,6 @@ import org.linqs.psl.model.atom.GroundAtom;
 import org.linqs.psl.reasoner.function.ConstraintTerm;
 
 public interface UnweightedGroundRule extends GroundRule {
-	
-	@Override
-	public UnweightedRule getRule();
-
 	public ConstraintTerm getConstraintDefinition();
 	
 	/**

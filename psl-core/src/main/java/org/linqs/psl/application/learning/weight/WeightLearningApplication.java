@@ -283,7 +283,7 @@ public abstract class WeightLearningApplication implements ModelApplication {
 
 		// Sums up the incompatibilities.
 		for (int i = 0; i < mutableRules.size(); i++) {
-			for (GroundRule groundRule : groundRuleStore.getGroundRules(mutableRules.get(i))) {
+			for (GroundRule groundRule : groundRuleStore.getGroundRules((Rule)mutableRules.get(i))) {
 				observedIncompatibility[i] += ((WeightedGroundRule)groundRule).getIncompatibility();
 			}
 		}
@@ -306,7 +306,7 @@ public abstract class WeightLearningApplication implements ModelApplication {
 
 		// Sums up the incompatibilities.
 		for (int i = 0; i < mutableRules.size(); i++) {
-			for (GroundRule groundRule : groundRuleStore.getGroundRules(mutableRules.get(i))) {
+			for (GroundRule groundRule : groundRuleStore.getGroundRules((Rule)mutableRules.get(i))) {
 				expectedIncompatibility[i] += ((WeightedGroundRule)groundRule).getIncompatibility();
 			}
 		}
