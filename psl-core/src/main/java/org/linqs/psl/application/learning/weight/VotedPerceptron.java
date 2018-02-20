@@ -58,7 +58,7 @@ import java.util.Map;
  * Child classes should be able to pick and chose which to override.
  */
 public abstract class VotedPerceptron extends WeightLearningApplication {
-	private static final Logger log = LoggerFactory.getLogger(VotedPerceptron.class);
+	protected static final Logger log = LoggerFactory.getLogger(VotedPerceptron.class);
 
 	/**
 	 * Prefix of property keys used by this class.
@@ -105,7 +105,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 	 * weights together for final output.
 	 */
 	public static final String AVERAGE_STEPS_KEY = CONFIG_PREFIX + ".averagesteps";
-	public static final boolean AVERAGE_STEPS_DEFAULT = true;
+	public static final boolean AVERAGE_STEPS_DEFAULT = false;
 
 	/**
 	 * Key for positive integer property. VotedPerceptron will take this many
@@ -113,7 +113,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 	 */
 	public static final String NUM_STEPS_KEY = CONFIG_PREFIX + ".numsteps";
 	/** Default value for NUM_STEPS_KEY */
-	public static final int NUM_STEPS_DEFAULT = 25;
+	public static final int NUM_STEPS_DEFAULT = 100;
 
 	protected final double baseStepSize;
 	protected final double inertia;
@@ -176,6 +176,10 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 		// Keep track of the last steps for each weight so we can apply momentum.
 		double[] lastSteps = new double[mutableRules.size()];
 
+		// Keep track of previous likelihood
+		double lastLikelihood = computeLoss();
+		log.debug("Likelihood {} ", lastLikelihood);
+
 		// Computes the gradient steps.
 		for (int step = 0; step < numSteps; step++) {
 			log.debug("Starting iteration {}", step);
@@ -183,30 +187,47 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 			// Computes the expected incompatibility.
 			computeExpectedIncompatibility();
 
-			currentLoss = computeLoss();
+
+			//Current updates
+			double previousWeights[] = new double[mutableRules.size()];
 
 			// Updates weights.
 			for (int i = 0; i < mutableRules.size(); i++) {
 				double weight = mutableRules.get(i).getWeight();
+				previousWeights[i] = weight;
+
 				double currentStep = (expectedIncompatibility[i] - observedIncompatibility[i]
 						- l2Regularization * weight
 						- l1Regularization) / scalingFactor[i];
 
-				currentStep *= baseStepSize;
+				currentStep *= (baseStepSize); // / Math.pow(step + 1, 2));
+				log.debug("Gradient : {}", currentStep); 
+				log.debug("Expected: {} Observed: {}", expectedIncompatibility[i], observedIncompatibility[i]); 
 
 				// Apply momentum.
-				currentStep += inertia * lastSteps[i];
+				//currentStep += inertia * lastSteps[i];
 
 				// TODO(eriq): Should we keep track of the computed step, or actual step (after Max(0)).
 				lastSteps[i] = currentStep;
 
-				log.debug("Step of {} for rule {} --- Expected incomp.: {}, Truth incomp.: {}",
-						currentStep, mutableRules.get(i), expectedIncompatibility[i], observedIncompatibility[i]);
-
+				//log.debug("Step of {} for rule {} --- Expected incomp.: {}, Truth incomp.: {}",
+				//		currentStep, mutableRules.get(i), expectedIncompatibility[i], observedIncompatibility[i]);
 				weight = Math.max(weight + currentStep, 0.0);
 				avgWeights[i] += weight;
 				mutableRules.get(i).setWeight(weight);
 			}
+
+			currentLoss = computeLoss();
+			log.debug("Likelihood {} ", currentLoss);
+			log.debug("Model {} ", mutableRules);
+			
+			/*if(currentLoss <= lastLikelihood) {
+				for (int i = 0; i < mutableRules.size(); i++) {
+					mutableRules.get(i).setWeight(previousWeights[i]);
+				}
+				break;
+			}*/
+			lastLikelihood = currentLoss;
 		}
 
 		// Sets the weights to their averages.
