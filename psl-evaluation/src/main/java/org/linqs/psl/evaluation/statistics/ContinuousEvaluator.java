@@ -19,6 +19,7 @@ package org.linqs.psl.evaluation.statistics;
 
 import org.linqs.psl.application.learning.weight.TrainingMap;
 import org.linqs.psl.config.ConfigBundle;
+import org.linqs.psl.model.atom.GroundAtom;
 import org.linqs.psl.model.atom.ObservedAtom;
 import org.linqs.psl.model.atom.RandomVariableAtom;
 import org.linqs.psl.model.predicate.StandardPredicate;
@@ -29,7 +30,7 @@ import java.util.Map;
 /**
  * Compute various continuous statistics using a threshold.
  */
-public class ContinuousMetricComputer extends MetricComputer {
+public class ContinuousEvaluator extends Evaluator {
 	public enum RepresentativeMetric {
 		MAE,
 		MSE
@@ -54,19 +55,19 @@ public class ContinuousMetricComputer extends MetricComputer {
 	private double absoluteError;
 	private double squaredError;
 
-	public ContinuousMetricComputer(ConfigBundle config) {
+	public ContinuousEvaluator(ConfigBundle config) {
 		this(config.getString(REPRESENTATIVE_KEY, DEFAULT_REPRESENTATIVE));
 	}
 
-	public ContinuousMetricComputer() {
+	public ContinuousEvaluator() {
 		this(DEFAULT_REPRESENTATIVE);
 	}
 
-	public ContinuousMetricComputer(String representative) {
+	public ContinuousEvaluator(String representative) {
 		this(RepresentativeMetric.valueOf(representative.toUpperCase()));
 	}
 
-	public ContinuousMetricComputer(RepresentativeMetric representative) {
+	public ContinuousEvaluator(RepresentativeMetric representative) {
 		this.representative = representative;
 
 		count = 0;
@@ -80,7 +81,11 @@ public class ContinuousMetricComputer extends MetricComputer {
 		absoluteError = 0.0;
 		squaredError = 0.0;
 
-		for (Map.Entry<RandomVariableAtom, ObservedAtom> entry : trainingMap.getTrainingMap().entrySet()) {
+		for (Map.Entry<GroundAtom, GroundAtom> entry : trainingMap.getFullMap()) {
+			if (entry.getKey().getPredicate() != predicate) {
+				continue;
+			}
+
 			count++;
 			absoluteError += Math.abs(entry.getValue().getValue() - entry.getKey().getValue());
 			squaredError += Math.pow(entry.getValue().getValue() - entry.getKey().getValue(), 2);
@@ -118,5 +123,10 @@ public class ContinuousMetricComputer extends MetricComputer {
 		}
 
 		return squaredError / count;
+	}
+
+	@Override
+	public String getAllStats() {
+		return String.format("MAE: %f, MSE: %f", mae(), mse());
 	}
 }

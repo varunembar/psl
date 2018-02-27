@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.linqs.psl.evaluation.statistics;
-
-import org.linqs.psl.model.atom.ObservedAtom;
-import org.linqs.psl.model.atom.RandomVariableAtom;
-import org.linqs.psl.model.predicate.StandardPredicate;
+package org.linqs.psl.model.rule;
 
 /**
- * Computes statistics by comparing the truth value of each {@link RandomVariableAtom}
- * in the results Database with that of the corresponding {@link ObservedAtom} in a baseline.
- * Any GroundAtoms that are not ObservedAtoms in the baseline are not counted towards
- * the statistics.
+ * Base class for all (first order, i.e., not ground) rules.
  */
-public interface PredictionComparator extends ResultComparator {
-	public PredictionStatistics compare(StandardPredicate predicate);
+public abstract class AbstractRule implements Rule {
+
+	protected final String name;
+
+	public AbstractRule(String name) {
+		this.name = name;
+	}
+
+	public String getName() {
+		return this.name;
+	}
 }

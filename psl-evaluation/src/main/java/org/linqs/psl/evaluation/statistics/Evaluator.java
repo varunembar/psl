@@ -32,7 +32,7 @@ import org.linqs.psl.model.predicate.StandardPredicate;
  * In addition to the representative metric, subclasses classes will usually
  * provide their own methods to access specific metrics.
  */
-public abstract class MetricComputer {
+public abstract class Evaluator {
 	/**
 	 * The main computation method.
 	 * This must be called before any of the metric retrival methods.
@@ -45,11 +45,17 @@ public abstract class MetricComputer {
 	public abstract boolean isHigherRepresentativeBetter();
 
 	/**
+	 * Get a string that contains the full range of stats that this Evaluator can provide.
+	 * compute() should have been called first.
+	 */
+	public abstract String getAllStats();
+
+	/**
 	 * A convenience call for those who don't want to create a training map directly.
 	 */
 	public void compute(Database rvDB, Database truthDB, StandardPredicate predicate) {
 		PersistedAtomManager atomManager = new PersistedAtomManager(rvDB);
-		TrainingMap map = new TrainingMap(atomManager, truthDB);
+		TrainingMap map = new TrainingMap(atomManager, truthDB, true);
 		compute(map, predicate);
 	}
 }

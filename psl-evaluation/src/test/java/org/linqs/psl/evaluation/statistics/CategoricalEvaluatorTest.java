@@ -15,33 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.linqs.psl.evaluation.statistics.filter;
+package org.linqs.psl.evaluation.statistics;
 
-import java.util.Iterator;
-import java.util.Set;
+import static org.junit.Assert.assertEquals;
 
-import org.linqs.psl.model.atom.GroundAtom;
+import org.linqs.psl.util.MathUtils;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
+import org.junit.Test;
 
-public class InSetFilter implements AtomFilter {
-
-	private final Set<GroundAtom> atoms;
-
-	public InSetFilter(Set<GroundAtom> atomSet) {
-		atoms = atomSet;
-	}
-
+// TODO(eriq): All the data needs to be reworked for this test.
+public class CategoricalEvaluatorTest extends EvaluatorTest<CategoricalEvaluator> {
 	@Override
-	public Iterator<GroundAtom> filter(Iterator<GroundAtom> input) {
-		return Iterators.filter(input, new Predicate<GroundAtom>() {
-			@Override
-			public boolean apply(GroundAtom atom) {
-				return atoms.contains(atom);
-			}
-
-		});
+	protected CategoricalEvaluator getComputer() {
+		return new CategoricalEvaluator();
 	}
 
+	@Test
+	public void testAccuracy() {
+		CategoricalEvaluator computer = new CategoricalEvaluator();
+		computer.compute(trainingMap, predicate);
+		assertEquals(1.0, computer.accuracy(), MathUtils.EPSILON);
+	}
 }

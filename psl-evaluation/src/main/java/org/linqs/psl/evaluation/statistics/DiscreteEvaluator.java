@@ -19,6 +19,7 @@ package org.linqs.psl.evaluation.statistics;
 
 import org.linqs.psl.application.learning.weight.TrainingMap;
 import org.linqs.psl.config.ConfigBundle;
+import org.linqs.psl.model.atom.GroundAtom;
 import org.linqs.psl.model.atom.ObservedAtom;
 import org.linqs.psl.model.atom.RandomVariableAtom;
 import org.linqs.psl.model.predicate.StandardPredicate;
@@ -29,7 +30,7 @@ import java.util.Map;
 /**
  * Compute various discrete statistics using a threshold.
  */
-public class DiscreteMetricComputer extends MetricComputer {
+public class DiscreteEvaluator extends Evaluator {
 	public enum RepresentativeMetric {
 		F1,
 		POSITIVE_PRECISION,
@@ -66,23 +67,23 @@ public class DiscreteMetricComputer extends MetricComputer {
 	private int tn;
 	private int fp;
 
-	public DiscreteMetricComputer(ConfigBundle config) {
+	public DiscreteEvaluator(ConfigBundle config) {
 		this(config.getDouble(THRESHOLD_KEY, DEFAULT_THRESHOLD), config.getString(REPRESENTATIVE_KEY, DEFAULT_REPRESENTATIVE));
 	}
 
-	public DiscreteMetricComputer() {
+	public DiscreteEvaluator() {
 		this(DEFAULT_THRESHOLD, DEFAULT_REPRESENTATIVE);
 	}
 
-	public DiscreteMetricComputer(double threshold) {
+	public DiscreteEvaluator(double threshold) {
 		this(threshold, DEFAULT_REPRESENTATIVE);
 	}
 
-	public DiscreteMetricComputer(double threshold, String representative) {
+	public DiscreteEvaluator(double threshold, String representative) {
 		this(threshold, RepresentativeMetric.valueOf(representative.toUpperCase()));
 	}
 
-	public DiscreteMetricComputer(double threshold, RepresentativeMetric representative) {
+	public DiscreteEvaluator(double threshold, RepresentativeMetric representative) {
 		if (threshold < 0.0 || threshold > 1.0) {
 			throw new IllegalArgumentException("Threhsold must be in (0, 1). Found: " + threshold);
 		}
@@ -103,7 +104,11 @@ public class DiscreteMetricComputer extends MetricComputer {
 		tn = 0;
 		fp = 0;
 
-		for (Map.Entry<RandomVariableAtom, ObservedAtom> entry : trainingMap.getTrainingMap().entrySet()) {
+		for (Map.Entry<GroundAtom, GroundAtom> entry : trainingMap.getFullMap()) {
+			if (entry.getKey().getPredicate() != predicate) {
+				continue;
+			}
+
 			boolean expected = (entry.getValue().getValue() >= threshold);
 			boolean predicated = (entry.getKey().getValue() >= threshold);
 
@@ -203,5 +208,16 @@ public class DiscreteMetricComputer extends MetricComputer {
 		}
 
 		return (tp + tn) / (double)numAtoms;
+	}
+
+	@Override
+	public String getAllStats() {
+		return String.format(
+				"Accuracy: %f, F1: %f," +
+				" Positive Class Precision: %f, Positive Class Recall: %f," +
+				" Negative Class Precision: %f, Negative Class Recall: %f",
+				accuracy(), f1(),
+				positivePrecision(), positiveRecall(),
+				negativePrecision(), negativeRecall());
 	}
 }
