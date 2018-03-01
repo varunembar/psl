@@ -17,6 +17,10 @@
  */
 package org.linqs.psl.application.learning.weight.maxlikelihood;
 
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.FileWriter;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -61,9 +65,18 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 	 */
 	public static final String NUM_SAMPLES_KEY = CONFIG_PREFIX + ".numsamples";
 	/** Default value for NUM_SAMPLES_KEY */
-	public static final int NUM_SAMPLES_DEFAULT = 1000;
+	public static final int NUM_SAMPLES_DEFAULT = 100;
 	
+	/**
+	 * Writes the objective function components to a file for plotting 
+	 */
+	public static final String OBJ_FILE_KEY = CONFIG_PREFIX + ".objectivefile";
+	/** Default value for OBJ_FILE_KEY */
+	public static final String OBJ_FILE_DEFAULT = "null";
+
 	private final int numSamples;
+	private final String objFile;
+
 	protected ArrayList<HashMap<RandomVariableAtom, ArrayList<GroundRule>>> ruleRandomVariableMap;
 	
 	/**
@@ -79,6 +92,7 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 		if (numSamples <= 0)
 			throw new IllegalArgumentException("Number of samples must be positive integer.");
 
+		objFile = config.getString(OBJ_FILE_KEY, OBJ_FILE_DEFAULT);
 	}
 
 	/**
@@ -144,6 +158,51 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 				accumulateIncompatibility += num / den;
 			}
 			expectedIncompatibility[i] = accumulateIncompatibility;
+		}
+	}
+
+	public void writeObjectiveComponents() {
+
+		setLabeledRandomVariables();
+		if(ruleRandomVariableMap == null) {
+			populateRandomVariableMap();
+		}
+
+		Random random = new Random();
+		try {
+			PrintWriter out = new PrintWriter(new FileWriter(objFile)); 
+
+			for (int i = 0; i < mutableRules.size(); i++) {
+				Rule rule = mutableRules.get(i);
+				HashMap<RandomVariableAtom, ArrayList<GroundRule>> groundRuleMap = ruleRandomVariableMap.get(i);
+
+				double obsInc = 0;
+				for(RandomVariableAtom atom: groundRuleMap.keySet()) {
+					for(GroundRule r: groundRuleMap.get(atom)) {
+						obsInc +=  ((WeightedGroundRule) r).getIncompatibility();
+					}
+				}
+				out.println(i + ";" + "all" + ";" + "obj" + ";" + obsInc);
+
+				for(RandomVariableAtom atom: groundRuleMap.keySet()) {
+					double oldValue = atom.getValue();
+					for (int iSample = 0; iSample < numSamples; iSample++) {
+						double sample = random.nextDouble();
+						atom.setValue(sample);
+
+						double energy = 0;
+						for(GroundRule r: groundRuleMap.get(atom)) {
+							energy +=  ((WeightedGroundRule) r).getIncompatibility();
+						}
+						out.println(i + ";" + atom + ";" + iSample + ";" + energy);
+					}
+					atom.setValue(oldValue);
+				}
+			}
+			out.close();
+		}
+		catch(Exception e) {
+			e.printStackTrace();
 		}
 	}
 
