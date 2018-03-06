@@ -201,7 +201,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 				// TODO(eriq): Should we keep track of the computed step, or actual step (after Max(0)).
 				lastSteps[i] = currentStep;
 
-				log.trace("Gradient: {} (without momentun: {}), Expected Incomp.: {}, Observed Incomp.: {} -- {}",
+				log.debug("Gradient: {} (without momentun: {}), Expected Incomp.: {}, Observed Incomp.: {} -- {}",
 						currentStep, currentStep - (inertia * lastSteps[i]),
 						expectedIncompatibility[i], observedIncompatibility[i],
 						mutableRules.get(i));
