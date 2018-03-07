@@ -56,7 +56,7 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 	public static final String NUM_SAMPLES_KEY = CONFIG_PREFIX + ".numsamples";
 	public static final int NUM_SAMPLES_DEFAULT = 100;
 	public static final String FALSE_POS_COST_KEY = CONFIG_PREFIX + ".fpcost";
-	public static final double FALSE_POS_COST_DEFAULT = -20.0;
+	public static final double FALSE_POS_COST_DEFAULT = -10.0;
 	public static final String FALSE_NEG_COST_KEY = CONFIG_PREFIX + ".fncost";
 	public static final double FALSE_NEG_COST_DEFAULT = 0.5;
 
