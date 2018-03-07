@@ -32,6 +32,9 @@ import org.linqs.psl.util.Parallel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,16 +53,25 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 	private static final Logger log = LoggerFactory.getLogger(MaxPiecewisePseudoLikelihood.class);
 
 	/**
+	 * Writes the objective function components to a file for plotting 
+	 */
+	public static final String OBJ_FILE_KEY = CONFIG_PREFIX + ".objectivefile";
+	/** Default value for OBJ_FILE_KEY */
+	public static final String OBJ_FILE_DEFAULT = "null";
+
+	/**
 	 * Key for positive integer property.
 	 * MaxPiecewisePseudoLikelihood will sample this many values to approximate the expectations.
 	 */
 	public static final String NUM_SAMPLES_KEY = CONFIG_PREFIX + ".numsamples";
 	public static final String LOSS_SCALING_FACTOR_KEY = CONFIG_PREFIX + ".lossscalingfactor";
 	public static final int NUM_SAMPLES_DEFAULT = 100;
-	public static final double LOSS_SCALING_FACTOR_DEFAULT = 0.5;
+	public static final double LOSS_SCALING_FACTOR_DEFAULT = 0.01;
 
 	private int numSamples;
 	private double lossScalingFactor;
+	private final String objFile;
+
 	private List<Map<RandomVariableAtom, List<WeightedGroundRule>>> ruleRandomVariableMap;
 
 	// We need an RNG for each thread.
@@ -78,9 +90,11 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 		}
 
 		lossScalingFactor = config.getDouble(LOSS_SCALING_FACTOR_KEY, LOSS_SCALING_FACTOR_DEFAULT);
-		if (lossScalingFactor <= 0) {
-			throw new IllegalArgumentException("Loss Scaling Factor must be positive.");
+		if (lossScalingFactor < 0) {
+			throw new IllegalArgumentException("Loss Scaling Factor must be non-negative.");
 		}
+
+		objFile = config.getString(OBJ_FILE_KEY, OBJ_FILE_DEFAULT);
 
 		rands = new Random[Parallel.NUM_THREADS];
 		for (int i = 0; i < Parallel.NUM_THREADS; i++) {
@@ -92,34 +106,35 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 		averageSteps = false;
 	}
 
+	private double logsumexp(double[] exponents) {
+
+		if(exponents.length == 0){
+			return Double.NEGATIVE_INFINITY;
+		}
+		
+		double maxTerm = Double.NEGATIVE_INFINITY;
+		for(double d : exponents){
+			if(d > maxTerm){
+				maxTerm = d;
+			}
+		}
+		
+		if(maxTerm == Double.NEGATIVE_INFINITY){
+			return Double.NEGATIVE_INFINITY;
+		}
+		
+		double sum = 0.;
+		for(double d : exponents){
+			sum += Math.exp(d - maxTerm);
+		}
+		
+		return maxTerm + Math.log(sum);
+	}
+
 	@Override
 	protected void postInitGroundModel() {
 		populateRandomVariableMap();
 	}
-
-	/**
-	 * Compute accuracy for each rule
-	 * 
-	private void computeRuleAccuracy() {
-		ruleAccuracy = new double[mutableRules.size()];
-
-		for (int i = 0; i < mutableRules.size(); i++) {
-			Map<RandomVariableAtom, List<WeightedGroundRule>> groundRuleMap = ruleRandomVariableMap.get(i);
-			int counter = 0;
-			int numRules = 0;
-
-			for (RandomVariableAtom atom : groundRuleMap.keySet()) {
-				for (WeightedGroundRule groundRule : groundRuleMap.get(atom)) {
-					if (groundRule.getIncompatibility() > 0 ) {
-						counter++;
-					}
-					numRules++;
-				}
-			}
-			ruleAccuracy[i] = 0.001;
-			log.debug("i" + i + " " + counter + " " + numRules);
-		}
-	}*/
 
 	/**
 	 * Create a dictonary for each unground rule.
@@ -226,7 +241,7 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 								energy += incomp; 
 							}
 						}
-						expInc += Math.exp(weight * energy);
+						expInc += Math.exp(-1 * weight * energy);
 					}
 
 					double obsInc = 0;
@@ -264,7 +279,6 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 			WeightedRule rule = mutableRules.get(ruleIndex);
 			Map<RandomVariableAtom, List<WeightedGroundRule>> groundRuleMap = ruleRandomVariableMap.get(ruleIndex);
 
-			double weight = ((WeightedRule) rule).getWeight();
 			double obsInc = 0;
 
 			for (RandomVariableAtom atom : groundRuleMap.keySet()) {
@@ -282,4 +296,50 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 			observedIncompatibility[ruleIndex] = obsInc;
 		}
 	}
+
+	public void writeObjectiveComponents() {
+
+		setLabeledRandomVariables();
+		if(ruleRandomVariableMap == null) {
+			populateRandomVariableMap();
+		}
+
+		Random random = new Random();
+		try {
+			PrintWriter out = new PrintWriter(new FileWriter(objFile)); 
+
+			for (int i = 0; i < mutableRules.size(); i++) {
+				Rule rule = mutableRules.get(i);
+				Map<RandomVariableAtom, List<WeightedGroundRule>> groundRuleMap = ruleRandomVariableMap.get(i);
+
+				double obsInc = 0;
+				for(RandomVariableAtom atom: groundRuleMap.keySet()) {
+					for(GroundRule r: groundRuleMap.get(atom)) {
+						obsInc +=  ((WeightedGroundRule) r).getIncompatibility();
+					}
+				}
+				out.println(i + ";" + "all" + ";" + "obj" + ";" + obsInc);
+
+				for(RandomVariableAtom atom: groundRuleMap.keySet()) {
+					double oldValue = atom.getValue();
+					for (int iSample = 0; iSample < numSamples; iSample++) {
+						double sample = random.nextDouble();
+						atom.setValue(sample);
+
+						double energy = 0;
+						for(GroundRule r: groundRuleMap.get(atom)) {
+							energy +=  ((WeightedGroundRule) r).getIncompatibility();
+						}
+						out.println(i + ";" + atom + ";" + iSample + ";" + energy);
+					}
+					atom.setValue(oldValue);
+				}
+			}
+			out.close();
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 }
