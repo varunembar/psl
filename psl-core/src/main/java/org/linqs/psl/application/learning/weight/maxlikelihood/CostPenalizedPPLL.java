@@ -86,7 +86,7 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 
 		falsePosCost = config.getDouble(FALSE_POS_COST_KEY, FALSE_POS_COST_DEFAULT);
 		falseNegCost = config.getDouble(FALSE_NEG_COST_KEY, FALSE_NEG_COST_DEFAULT);
-		useSoftCost = config.getBoolean(SOFT_SCORING_KEY, SOFT_SCORING_DEFAULT)
+		useSoftCost = config.getBoolean(SOFT_SCORING_KEY, SOFT_SCORING_DEFAULT);
 
 		rands = new Random[Parallel.NUM_THREADS];
 		for (int i = 0; i < Parallel.NUM_THREADS; i++) {
