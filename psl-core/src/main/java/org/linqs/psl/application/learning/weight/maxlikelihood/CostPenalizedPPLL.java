@@ -58,11 +58,15 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 	public static final String FALSE_POS_COST_KEY = CONFIG_PREFIX + ".fpcost";
 	public static final double FALSE_POS_COST_DEFAULT = -10.0;
 	public static final String FALSE_NEG_COST_KEY = CONFIG_PREFIX + ".fncost";
-	public static final double FALSE_NEG_COST_DEFAULT = 0.5;
+	public static final double FALSE_NEG_COST_DEFAULT = 1.0;
+
+	public static final String SOFT_SCORING_KEY = CONFIG_PREFIX + ".usesoft";
+	public static final boolean SOFT_SCORING_DEFAULT = true;
 
 	private int numSamples;
 	private double falsePosCost;
 	private double falseNegCost;
+	private boolean useSoftCost;
 	private List<Map<RandomVariableAtom, List<WeightedGroundRule>>> ruleRandomVariableMap;
 
 	// We need an RNG for each thread.
@@ -82,6 +86,7 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 
 		falsePosCost = config.getDouble(FALSE_POS_COST_KEY, FALSE_POS_COST_DEFAULT);
 		falseNegCost = config.getDouble(FALSE_NEG_COST_KEY, FALSE_NEG_COST_DEFAULT);
+		useSoftCost = config.getBoolean(SOFT_SCORING_KEY, SOFT_SCORING_DEFAULT)
 
 		rands = new Random[Parallel.NUM_THREADS];
 		for (int i = 0; i < Parallel.NUM_THREADS; i++) {
@@ -162,11 +167,13 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 
 							energy += incomp;
 
-							if(atomTruthValue < 0.5 && sample >= 0.5) {
-								costFunction += falsePosCost;
+							//if(atomTruthValue < 0.5 && sample >= 0.5) {
+							if(sample > atomTruthValue){
+								costFunction += (sample - atomTruthValue)*falsePosCost;
 							}
-							else if(atomTruthValue >= 0.5 && sample < 0.5){
-								costFunction += falseNegCost;
+							if(sample < atomTruthValue){
+							//else if(atomTruthValue >= 0.5 && sample < 0.5){
+								costFunction += (atomTruthValue - sample)*falseNegCost;
 							}
 						}
 
