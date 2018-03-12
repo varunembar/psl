@@ -167,13 +167,21 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 
 							energy += incomp;
 
-							//if(atomTruthValue < 0.5 && sample >= 0.5) {
-							if(sample > atomTruthValue){
-								costFunction += (sample - atomTruthValue)*falsePosCost;
-							}
-							if(sample < atomTruthValue){
-							//else if(atomTruthValue >= 0.5 && sample < 0.5){
-								costFunction += (atomTruthValue - sample)*falseNegCost;
+							if(useSoftCost){
+								if(sample > atomTruthValue){
+									costFunction += (sample - atomTruthValue)*falsePosCost;
+								}
+								if(sample < atomTruthValue){
+									costFunction += (atomTruthValue - sample)*falseNegCost;
+								}
+
+							}else{
+								if(atomTruthValue < 0.5 && sample >= 0.5) {
+									costFunction += falsePosCost;
+								}
+								else if(atomTruthValue >= 0.5 && sample < 0.5){
+									costFunction += falseNegCost;
+								}
 							}
 						}
 
