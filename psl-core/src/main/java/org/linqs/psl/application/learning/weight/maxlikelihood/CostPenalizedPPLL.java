@@ -160,31 +160,28 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 
 						double energy = 0.0;
 						double costFunction = 0.0;
+						double atomTruthValue = atom.getValue();
+
+						if(useSoftCost){
+							if(sample > atomTruthValue){
+								costFunction = (sample - atomTruthValue)*falsePosCost;
+							}
+							if(sample < atomTruthValue){
+								costFunction = (atomTruthValue - sample)*falseNegCost;
+							}
+
+						}else{
+							if(atomTruthValue < 0.5 && sample >= 0.5) {
+								costFunction = falsePosCost;
+							}
+							else if(atomTruthValue >= 0.5 && sample < 0.5){
+								costFunction = falseNegCost;
+							}
+						}
+
 
 						for (int i = 0; i < groundRules.size(); i++) {
-							double incomp = groundRules.get(i).getIncompatibility(atom, sample);
-							double atomTruthValue = atom.getValue();
-
-							energy += incomp;
-
-							if(useSoftCost){
-								if(sample > atomTruthValue){
-									costFunction += (sample - atomTruthValue)*falsePosCost;
-									// costFunction += falsePosCost;
-								}
-								if(sample < atomTruthValue){
-									costFunction += (atomTruthValue - sample)*falseNegCost;
-									// costFunction += falseNegCost;
-								}
-
-							}else{
-								if(atomTruthValue < 0.5 && sample >= 0.5) {
-									costFunction += falsePosCost;
-								}
-								else if(atomTruthValue >= 0.5 && sample < 0.5){
-									costFunction += falseNegCost;
-								}
-							}
+							energy += groundRules.get(i).getIncompatibility(atom, sample);
 						}
 
 						numerator += Math.exp((-1.0 * weight * energy) + costFunction) * energy;
@@ -219,20 +216,34 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 
 						double energy = 0;
 						double costFunction = 0.0;
+						double atomTruthValue = atom.getValue();
+
+						if(useSoftCost){
+							if(sample > atomTruthValue){
+								costFunction = (sample - atomTruthValue)*falsePosCost;
+							}
+							if(sample < atomTruthValue){
+								costFunction = (atomTruthValue - sample)*falseNegCost;
+							}
+
+						}else{
+							if(atomTruthValue < 0.5 && sample >= 0.5) {
+								costFunction = falsePosCost;
+							}
+							else if(atomTruthValue >= 0.5 && sample < 0.5){
+								costFunction = falseNegCost;
+							}
+						}
 
 						for (int i = 0; i < groundRules.size(); i++) {
-							double incomp = groundRules.get(i).getIncompatibility(atom, sample);
-							energy += incomp;
-							double atomTruthValue = atom.getValue();
-
+							energy += groundRules.get(i).getIncompatibility(atom, sample);
+							
 							if(useSoftCost){
 								if(sample > atomTruthValue){
 									costFunction += (sample - atomTruthValue)*falsePosCost;
-									// costFunction += falsePosCost;
 								}
 								if(sample < atomTruthValue){
 									costFunction += (atomTruthValue - sample)*falseNegCost;
-									// costFunction += falseNegCost;
 								}
 
 							}else{
