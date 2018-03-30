@@ -214,7 +214,7 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 					for (int sampleIndex = 0; sampleIndex < numSamples; sampleIndex++) {
 						double sample = rands[id].nextDouble();
 
-						double energy = 0;
+						double energy = 0.0;
 						double costFunction = 0.0;
 						double atomTruthValue = atom.getValue();
 
@@ -238,22 +238,6 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 						for (int i = 0; i < groundRules.size(); i++) {
 							energy += groundRules.get(i).getIncompatibility(atom, sample);
 							
-							if(useSoftCost){
-								if(sample > atomTruthValue){
-									costFunction += (sample - atomTruthValue)*falsePosCost;
-								}
-								if(sample < atomTruthValue){
-									costFunction += (atomTruthValue - sample)*falseNegCost;
-								}
-
-							}else{
-								if(atomTruthValue < 0.5 && sample >= 0.5) {
-									costFunction += falsePosCost;
-								}
-								else if(atomTruthValue >= 0.5 && sample < 0.5){
-									costFunction += falseNegCost;
-								}
-							}
 						}
 						expInc += Math.exp((-1 * weight * energy) + costFunction);
 					}
