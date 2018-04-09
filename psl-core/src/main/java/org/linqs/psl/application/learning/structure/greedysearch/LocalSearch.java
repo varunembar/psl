@@ -99,7 +99,7 @@ public class LocalSearch extends StructureSelectionApplication {
 	@Override
 	protected void doLearn() {
 
-		MaxLikelihoodMPE mle = new MaxLikelihoodMPE(model, rvDB, observedDB, config);
+		VotedPerceptron mle = null;
 		// VotedPerceptron mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
 		Scorer scorer = new WeightedPseudoLogLikelihood(model, rvDB, observedDB, config);
 
@@ -120,7 +120,7 @@ public class LocalSearch extends StructureSelectionApplication {
 
 				log.warn("Trying to add rule : " + candRule);
 				model.addRule(candRule);
-				log.warn(model.toString());
+				mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
 				// Grounding.groundRule(candRule, trainingMap, groundRuleStore);
 
 				double score = 0.0;
@@ -159,6 +159,7 @@ public class LocalSearch extends StructureSelectionApplication {
 					log.warn("Trying to remove rule : " + rule);
 
 					model.removeRule(rule);
+					mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
 					// Grounding.removeRule(rule, groundRuleStore);
 
 					double score = 0.0;
