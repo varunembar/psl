@@ -22,6 +22,8 @@ import org.linqs.psl.model.predicate.PredicateFactory;
 import org.linqs.psl.application.learning.structure.greedysearch.scoring.Scorer;
 import org.linqs.psl.application.learning.structure.greedysearch.scoring.WeightedPseudoLogLikelihood;
 import org.linqs.psl.application.learning.weight.maxlikelihood.MaxLikelihoodMPE;
+import org.linqs.psl.application.learning.weight.maxlikelihood.ConstraintFreeMPLE;
+import org.linqs.psl.application.learning.weight.VotedPerceptron;
 import org.linqs.psl.model.rule.WeightedRule;
 import org.linqs.psl.model.rule.Rule;
 import org.linqs.psl.model.rule.logical.WeightedLogicalRule;
@@ -97,7 +99,8 @@ public class LocalSearch extends StructureSelectionApplication {
 	@Override
 	protected void doLearn() {
 
-		MaxLikelihoodMPE mle = new MaxLikelihoodMPE(model, rvDB, observedDB, config);
+		// MaxLikelihoodMPE mle = new MaxLikelihoodMPE(model, rvDB, observedDB, config);
+		VotedPerceptron mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
 		Scorer scorer = new WeightedPseudoLogLikelihood(model, rvDB, observedDB, config);
 
 		double bestScore = Double.NEGATIVE_INFINITY;
