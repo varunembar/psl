@@ -158,6 +158,10 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 		
 		// double[] expInc = new double[mutableRules.size()];
 
+		for (int i = 0; i < expectedIncompatibility.length; i++) {
+			expectedIncompatibility[i] = 0.0;
+		}
+
 		Random random = new Random();
 
 
