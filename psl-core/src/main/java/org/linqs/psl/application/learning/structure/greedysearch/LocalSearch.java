@@ -99,8 +99,8 @@ public class LocalSearch extends StructureSelectionApplication {
 	@Override
 	protected void doLearn() {
 
-		// MaxLikelihoodMPE mle = new MaxLikelihoodMPE(model, rvDB, observedDB, config);
-		VotedPerceptron mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
+		MaxLikelihoodMPE mle = new MaxLikelihoodMPE(model, rvDB, observedDB, config);
+		// VotedPerceptron mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
 		Scorer scorer = new WeightedPseudoLogLikelihood(model, rvDB, observedDB, config);
 
 		double bestScore = Double.NEGATIVE_INFINITY;
