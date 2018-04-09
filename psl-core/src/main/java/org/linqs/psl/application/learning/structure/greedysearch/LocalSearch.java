@@ -120,12 +120,12 @@ public class LocalSearch extends StructureSelectionApplication {
 
 				log.warn("Trying to add rule : " + candRule);
 				model.addRule(candRule);
+				log.warn(model.toString());
 				// Grounding.groundRule(candRule, trainingMap, groundRuleStore);
 
 				double score = 0.0;
 				try{
 					mle.learn();
-					log.warn(model.toString());
 					log.warn("Learning complete");
 
 					score = scorer.scoreModel();
