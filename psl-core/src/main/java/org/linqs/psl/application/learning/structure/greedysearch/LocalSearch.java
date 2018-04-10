@@ -105,7 +105,7 @@ public class LocalSearch extends StructureSelectionApplication {
 
 		double bestScore = Double.NEGATIVE_INFINITY;
 		double previousBestScore = 0.0;
-		double tolerance = 1e-4;
+		double tolerance = 1e-6;
 		int iter = 0;
 
 		while(Math.abs(previousBestScore - bestScore) > tolerance && iter < maxIterations){
