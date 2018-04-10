@@ -251,4 +251,25 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 		// return expInc;
 	}
 
+
+	@Override
+	protected void computeObservedIncompatibility() {
+		setLabeledRandomVariables();
+
+		for (int ruleIndex = 0; ruleIndex < mutableRules.size(); ruleIndex++) {
+			
+			double obsInc = 0.0;
+
+			for (RandomVariableAtom atom : ruleRandomVariableMap.keySet()) {
+				for (WeightedGroundRule groundRule : ruleRandomVariableMap.get(atom)) {
+					obsInc += groundRule.getIncompatibility();
+				}
+			}
+
+			observedIncompatibility[ruleIndex] = obsInc;
+		}
+	}
+
+
+
 }
