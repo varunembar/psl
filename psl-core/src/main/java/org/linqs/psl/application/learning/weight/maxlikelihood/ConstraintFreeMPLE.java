@@ -90,8 +90,9 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 	private final double minWidth;
 	private final double constraintTol;
 
-	private Map<RandomVariableAtom, List<WeightedGroundRule>> ruleRandomVariableMap;
-	
+	private List<Map<RandomVariableAtom, List<WeightedGroundRule>>> ruleRandomVariableMap;
+	private List<RandomVariableAtom> rvAtomList;
+
 	/**
 	 * Constructor
 	 * @param model
@@ -113,11 +114,13 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 			throw new IllegalArgumentException("Minimum width must be positive double.");
 
 		ruleRandomVariableMap = null;
+		rvAtomList = null;
 	}
 
 	@Override
 	protected void postInitGroundModel() {
 		populateRandomVariableMap();
+		populateRandomVariableList();
 	}
 
 
@@ -126,25 +129,38 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 	 * The dictonary maps random variable atoms to the ground rules it participates in.
 	 * */
 	private void populateRandomVariableMap() {
-		ruleRandomVariableMap = new HashMap<RandomVariableAtom, List<WeightedGroundRule>>();
+		ruleRandomVariableMap = new ArrayList<Map<RandomVariableAtom, List<WeightedGroundRule>>>();
 
-		
+		for (WeightedRule rule : mutableRules) {
+			Map<RandomVariableAtom, List<WeightedGroundRule>> groundRuleMap = new HashMap<RandomVariableAtom, List<WeightedGroundRule>>();
+			for (GroundRule groundRule : groundRuleStore.getGroundRules(rule)) {
+				for (GroundAtom atom : groundRule.getAtoms()) {
+					if (!(atom instanceof RandomVariableAtom)) {
+						continue;
+					}
+
+					RandomVariableAtom rva = (RandomVariableAtom)atom;
+					if (!groundRuleMap.containsKey(rva)) {
+						groundRuleMap.put(rva, new ArrayList<WeightedGroundRule>());
+					}
+
+					groundRuleMap.get(atom).add((WeightedGroundRule)groundRule);
+				}
+			}
+
+			ruleRandomVariableMap.add(groundRuleMap);
+		}
+	}
+
+	private void populateRandomVariableList(){
+		rvAtomList = new ArrayList<RandomVariableAtom>();
 		for (GroundRule groundRule : groundRuleStore.getGroundRules()) {
 			for (GroundAtom atom : groundRule.getAtoms()) {
-				if (!(atom instanceof RandomVariableAtom)) {
-					continue;
+				if (atom instanceof RandomVariableAtom) {
+					rvAtomList.add(((RandomVariableAtom)atom));
 				}
-
-				RandomVariableAtom rva = (RandomVariableAtom)atom;
-				if (!ruleRandomVariableMap.containsKey(rva)) {
-					ruleRandomVariableMap.put(rva, new ArrayList<WeightedGroundRule>());
-				}
-
-				ruleRandomVariableMap.get(atom).add((WeightedGroundRule)groundRule);
 			}
 		}
-
-			
 	}
 	
 
@@ -166,7 +182,7 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 
 
 		/* Accumulate the expected incompatibility over all atoms */
-		for (RandomVariableAtom atom : ruleRandomVariableMap.keySet()) {
+		for (RandomVariableAtom atom : rvAtomList) {
 			
 			/* Sample numSamples random numbers in the range of integration */
 			double[] s;
@@ -183,18 +199,26 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 			double originalAtomValue = atom.getValue();
 			
 			/* Computes the probability */
-			for (GroundRule groundRule : ruleRandomVariableMap.get(atom)) {
-				if (groundRule instanceof WeightedGroundRule) {
-					WeightedRule rule = (WeightedRule) groundRule.getRule();
-					if (!incompatibilities.containsKey(rule))
-						incompatibilities.put(rule, new double[s.length]);
-					double[] inc = incompatibilities.get(rule);
-					for (int iSample = 0; iSample < s.length; iSample++) {
-						atom.setValue(s[iSample]);
-						inc[iSample] += ((WeightedGroundRule) groundRule).getIncompatibility();
+
+			for(int ruleIndex = 0; ruleIndex < mutableRules.size(); ruleIndex++){
+				 Map<RandomVariableAtom, List<WeightedGroundRule>> atomRuleMap = ruleRandomVariableMap.get(ruleIndex);
+				 if(atomRuleMap.containsKey(atom)){
+				 	for (GroundRule groundRule : atomRuleMap.get(atom)) {
+						if (groundRule instanceof WeightedGroundRule) {
+							WeightedRule rule = (WeightedRule) groundRule.getRule();
+							if (!incompatibilities.containsKey(rule))
+								incompatibilities.put(rule, new double[s.length]);
+							double[] inc = incompatibilities.get(rule);
+							for (int iSample = 0; iSample < s.length; iSample++) {
+								atom.setValue(s[iSample]);
+								inc[iSample] += ((WeightedGroundRule) groundRule).getIncompatibility();
+							}
+						}
 					}
-				}
+				 }
 			}
+
+			
 			
 			atom.setValue(originalAtomValue);
 
@@ -252,24 +276,25 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 	}
 
 
-	// @Override
-	// protected void computeObservedIncompatibility() {
-	// 	setLabeledRandomVariables();
+	@Override
+	protected void computeObservedIncompatibility() {
+		setLabeledRandomVariables();
 
-	// 	for (int ruleIndex = 0; ruleIndex < mutableRules.size(); ruleIndex++) {
-			
-	// 		double obsInc = 0.0;
+		for (int ruleIndex = 0; ruleIndex < mutableRules.size(); ruleIndex++) {
+			WeightedRule rule = mutableRules.get(ruleIndex);
+			Map<RandomVariableAtom, List<WeightedGroundRule>> groundRuleMap = ruleRandomVariableMap.get(ruleIndex);
 
-	// 		for (RandomVariableAtom atom : ruleRandomVariableMap.keySet()) {
-	// 			for (WeightedGroundRule groundRule : ruleRandomVariableMap.get(atom)) {
-	// 				obsInc += groundRule.getIncompatibility();
-	// 			}
-	// 		}
+			double obsInc = 0.0;
 
-	// 		observedIncompatibility[ruleIndex] = obsInc;
-	// 	}
-	// }
+			for (RandomVariableAtom atom : groundRuleMap.keySet()) {
+				for (WeightedGroundRule groundRule : groundRuleMap.get(atom)) {
+					obsInc += groundRule.getIncompatibility();
 
+				}
+			}
 
+			observedIncompatibility[ruleIndex] = obsInc;
+		}
+	}
 
 }
