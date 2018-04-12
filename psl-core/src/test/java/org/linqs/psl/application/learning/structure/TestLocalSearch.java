@@ -28,6 +28,7 @@ import org.linqs.psl.application.groundrulestore.GroundRuleStore;
 import org.linqs.psl.application.groundrulestore.MemoryGroundRuleStore;
 import org.linqs.psl.application.learning.structure.StructureSelectionApplication;
 import org.linqs.psl.application.learning.structure.greedysearch.LocalSearch;
+import org.linqs.psl.application.learning.structure.greedysearch.SimpleLocalSearch;
 import org.linqs.psl.config.ConfigBundle;
 import org.linqs.psl.config.EmptyBundle;
 import org.linqs.psl.database.DataStore;
@@ -173,7 +174,7 @@ public class TestLocalSearch {
 	public void testLocalSearch() {
 		try {
 			
-			StructureSelectionApplication ssApp = new LocalSearch(model, rvDB, truthDB, config, candidateRuleSet);
+			StructureSelectionApplication ssApp = new SimpleLocalSearch(model, rvDB, truthDB, config, candidateRuleSet);
 			ssApp.learn();
 			System.out.println(model.toString());
 		} catch(Exception ex) {
