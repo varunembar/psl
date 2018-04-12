@@ -112,7 +112,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 	 * steps to learn weights.
 	 */
 	public static final String NUM_STEPS_KEY = CONFIG_PREFIX + ".numsteps";
-	public static final int NUM_STEPS_DEFAULT = 50000;
+	public static final int NUM_STEPS_DEFAULT = 2500;
 
 	protected final double baseStepSize;
 	protected final double l2Regularization;
@@ -193,7 +193,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 						- l2Regularization * weight
 						- l1Regularization) / scalingFactor[i];
 
-				currentStep *= baseStepSize;
+				currentStep *= baseStepSize/(step + 1);
 
 				// Apply momentum.
 				currentStep += inertia * lastSteps[i];
