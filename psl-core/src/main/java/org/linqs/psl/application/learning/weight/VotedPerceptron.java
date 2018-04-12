@@ -112,7 +112,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 	 * steps to learn weights.
 	 */
 	public static final String NUM_STEPS_KEY = CONFIG_PREFIX + ".numsteps";
-	public static final int NUM_STEPS_DEFAULT = 2500;
+	public static final int NUM_STEPS_DEFAULT = 100;
 
 	protected final double baseStepSize;
 	protected final double l2Regularization;

@@ -249,9 +249,6 @@ public class StochasticMPLE extends VotedPerceptron {
 
 			atom.setValue(originalAtomValue);
 
-			Arrays.sort(s);
-
-			double width;
 			/* Compute the exp incomp and accumulate the partition for the current atom. */
 			HashMap<WeightedRule,Double> expIncAtom = new HashMap<WeightedRule,Double>();
 			double Z = 0.0;
@@ -265,19 +262,8 @@ public class StochasticMPLE extends VotedPerceptron {
 				}
 				double exp = Math.exp(sum);
 				/* Add to partition */
-				width = 0.0;
-				if(j == 0){
-					width = s[j]; 
-				}
-				else if (j == s.length - 1){
-					width = 1.0 - s[j];
-				}
-				else{
-					width = s[j+1] - s[j];
-				}
-
-				Z += (exp * width);
-				// Z+= exp;
+				
+				Z+= exp;
 
 				/* Compute the exp incomp for current atom */
 				for (Map.Entry<WeightedRule,double[]> e2 : incompatibilities.entrySet()) {
@@ -298,8 +284,7 @@ public class StochasticMPLE extends VotedPerceptron {
 			}
 		}
 		
-		// setLabeledRandomVariables();
-		// return expInc;
+
 	}
 
 

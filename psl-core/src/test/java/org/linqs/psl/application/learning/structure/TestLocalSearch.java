@@ -120,10 +120,10 @@ public class TestLocalSearch {
 
 		
 		Inserter inserter = dataStore.getInserter(doublePredicateObs, obsPartition);
-		inserter.insertValue(0.9, new UniqueStringID("Alice"),new UniqueStringID("Bob"));
-		inserter.insertValue(0.9, new UniqueStringID("Bob"),new UniqueStringID("Alice"));
-		inserter.insertValue(0.1, new UniqueStringID("Bob"),new UniqueStringID("Bob"));
-		inserter.insertValue(0.1, new UniqueStringID("Alice"),new UniqueStringID("Alice"));
+		inserter.insertValue(1.0, new UniqueStringID("Alice"),new UniqueStringID("Bob"));
+		inserter.insertValue(1.0, new UniqueStringID("Bob"),new UniqueStringID("Alice"));
+		inserter.insertValue(0.0, new UniqueStringID("Bob"),new UniqueStringID("Bob"));
+		inserter.insertValue(0.0, new UniqueStringID("Alice"),new UniqueStringID("Alice"));
 
 		inserter = dataStore.getInserter(doublePredicateTar, targetPartition);
 		inserter.insertValue(1.0, new UniqueStringID("Alice"),new UniqueStringID("Bob"));
@@ -172,6 +172,8 @@ public class TestLocalSearch {
 
 	@Test
 	public void testLocalSearch() {
+		PSLTest.initLogger("DEBUG");
+
 		try {
 			
 			StructureSelectionApplication ssApp = new SimpleLocalSearch(model, rvDB, truthDB, config, candidateRuleSet);

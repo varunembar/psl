@@ -107,6 +107,7 @@ public class SimpleLocalSearch extends StructureSelectionApplication {
 		double previousBestScore = 0.0;
 		double tolerance = 1e-6;
 		int iter = 0;
+		double bestRuleWeight = 0.0;
 
 		while(Math.abs(previousBestScore - bestScore) > tolerance && iter < maxIterations){
 
@@ -133,17 +134,21 @@ public class SimpleLocalSearch extends StructureSelectionApplication {
 				}
 
 				model.removeRule(candRule);
-				((WeightedRule)candRule).setWeight(initRuleWeight);
+				
 
 				if(score > bestScore){
 					bestRule = candRule;
 					bestScore = score;
+					bestRuleWeight = ((WeightedRule)candRule).getWeight();
 				}
+
+				((WeightedRule)candRule).setWeight(initRuleWeight);
 			}
 
 			if(bestRule != null){
 				
 				candidateRuleSet.remove(bestRule);
+				((WeightedRule)bestRule).setWeight(bestRuleWeight);
 				model.addRule(bestRule);
 					
 			}
