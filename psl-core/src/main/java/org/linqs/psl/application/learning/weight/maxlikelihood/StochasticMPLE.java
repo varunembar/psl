@@ -81,7 +81,7 @@ public class StochasticMPLE extends VotedPerceptron {
 	
 
 	private List<Map<RandomVariableAtom, List<WeightedGroundRule>>> ruleRandomVariableMap;
-	private List<RandomVariableAtom> rvAtomList;
+	private Set<RandomVariableAtom> rvAtomSet;
 	private List<Map<RandomVariableAtom, List<Integer>>> randomIndicesMap;
 
 	private Random random;
@@ -107,7 +107,7 @@ public class StochasticMPLE extends VotedPerceptron {
 		maxGroundings = config.getInt(MAX_GROUNDINGS_KEY, MAX_GROUNDINGS_DEFAULT);
 
 		ruleRandomVariableMap = null;
-		rvAtomList = null;
+		rvAtomSet = null;
 		randomIndicesMap = null;
 
 		random = new Random(randomSeed);
@@ -150,11 +150,11 @@ public class StochasticMPLE extends VotedPerceptron {
 	}
 
 	private void populateRandomVariableList(){
-		rvAtomList = new ArrayList<RandomVariableAtom>();
+		rvAtomSet = new HashSet<RandomVariableAtom>();
 		for (GroundRule groundRule : groundRuleStore.getGroundRules()) {
 			for (GroundAtom atom : groundRule.getAtoms()) {
 				if (atom instanceof RandomVariableAtom) {
-					rvAtomList.add(((RandomVariableAtom)atom));
+					rvAtomSet.add(((RandomVariableAtom)atom));
 				}
 			}
 		}
@@ -208,7 +208,7 @@ public class StochasticMPLE extends VotedPerceptron {
 
 
 		/* Accumulate the expected incompatibility over all atoms */
-		for (RandomVariableAtom atom : rvAtomList) {
+		for (RandomVariableAtom atom : rvAtomSet) {
 			
 			/* Sample numSamples random numbers in the range of integration */
 			double[] s;

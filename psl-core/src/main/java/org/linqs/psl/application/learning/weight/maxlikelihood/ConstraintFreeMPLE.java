@@ -91,7 +91,7 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 	private final double constraintTol;
 
 	private List<Map<RandomVariableAtom, List<WeightedGroundRule>>> ruleRandomVariableMap;
-	private List<RandomVariableAtom> rvAtomList;
+	private Set<RandomVariableAtom> rvAtomSet;
 
 	/**
 	 * Constructor
@@ -114,7 +114,7 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 			throw new IllegalArgumentException("Minimum width must be positive double.");
 
 		ruleRandomVariableMap = null;
-		rvAtomList = null;
+		rvAtomSet = null;
 	}
 
 	@Override
@@ -153,11 +153,11 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 	}
 
 	private void populateRandomVariableList(){
-		rvAtomList = new ArrayList<RandomVariableAtom>();
+		rvAtomSet = new HashSet<RandomVariableAtom>();
 		for (GroundRule groundRule : groundRuleStore.getGroundRules()) {
 			for (GroundAtom atom : groundRule.getAtoms()) {
 				if (atom instanceof RandomVariableAtom) {
-					rvAtomList.add(((RandomVariableAtom)atom));
+					rvAtomSet.add(((RandomVariableAtom)atom));
 				}
 			}
 		}
@@ -182,7 +182,7 @@ public class ConstraintFreeMPLE extends VotedPerceptron {
 
 
 		/* Accumulate the expected incompatibility over all atoms */
-		for (RandomVariableAtom atom : rvAtomList) {
+		for (RandomVariableAtom atom : rvAtomSet) {
 			
 			/* Sample numSamples random numbers in the range of integration */
 			double[] s;
