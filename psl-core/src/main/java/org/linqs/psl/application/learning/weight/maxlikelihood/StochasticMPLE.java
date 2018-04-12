@@ -280,7 +280,7 @@ public class StochasticMPLE extends VotedPerceptron {
 				WeightedRule rule = mutableRules.get(i);
 				if (expIncAtom.containsKey(rule))
 					if (expIncAtom.get(rule) > 0.0) 
-						expectedIncompatibility[i] += expIncAtom.get(rule) / (numSamples*Z);
+						expectedIncompatibility[i] += expIncAtom.get(rule) / Z;
 			}
 		}
 		
