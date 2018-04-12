@@ -59,9 +59,9 @@ public class Model {
 	 * @throws IllegalArgumentException if the Rule is already in this Model
 	 */
 	public void addRule(Rule rule) {
-		if (ruleSet.contains(rule)) {
-			throw new IllegalArgumentException("Rule already added to this model.");
-		}
+		// if (ruleSet.contains(rule)) {
+		// 	throw new IllegalArgumentException("Rule already added to this model.");
+		// }
 
 		rules.add(rule);
 		ruleSet.add(rule);
