@@ -121,7 +121,7 @@ public class LocalSearch extends StructureSelectionApplication {
 
 				log.warn("Trying to add rule : " + candRule);
 				model.addRule(candRule);
-				mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
+				mle = new StochasticMPLE(model, rvDB, observedDB, config);
 				// Grounding.groundRule(candRule, trainingMap, groundRuleStore);
 
 				double score = 0.0;
@@ -160,7 +160,7 @@ public class LocalSearch extends StructureSelectionApplication {
 					log.warn("Trying to remove rule : " + rule);
 
 					model.removeRule(rule);
-					mle = new ConstraintFreeMPLE(model, rvDB, observedDB, config);
+					mle = new StochasticMPLE(model, rvDB, observedDB, config);
 					// Grounding.removeRule(rule, groundRuleStore);
 
 					double score = 0.0;
