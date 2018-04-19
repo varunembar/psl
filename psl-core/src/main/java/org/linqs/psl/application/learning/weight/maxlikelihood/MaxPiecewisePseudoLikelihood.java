@@ -66,7 +66,7 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 	public static final String NUM_SAMPLES_KEY = CONFIG_PREFIX + ".numsamples";
 	public static final String LOSS_SCALING_FACTOR_KEY = CONFIG_PREFIX + ".lossscalingfactor";
 	public static final int NUM_SAMPLES_DEFAULT = 100;
-	public static final double LOSS_SCALING_FACTOR_DEFAULT = 0.01;
+	public static final double LOSS_SCALING_FACTOR_DEFAULT = 0.00;
 
 	private int numSamples;
 	private double lossScalingFactor;
@@ -103,7 +103,7 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 
 		ruleRandomVariableMap = null;
 
-		averageSteps = false;
+		//averageSteps = false;
 	}
 
 	private double logsumexp(double[] exponents) {
@@ -228,6 +228,7 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 					List<WeightedGroundRule> groundRules = groundRuleMap.get(atom);
 
 					double expInc = 0;
+					double[] exponents = new double[numSamples];
 					for (int sampleIndex = 0; sampleIndex < numSamples; sampleIndex++) {
 						double sample = rands[id].nextDouble();
 
@@ -241,8 +242,10 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 								energy += incomp; 
 							}
 						}
-						expInc += Math.exp(-1 * weight * energy);
+						//expInc += Math.exp(-1 * weight * energy);
+						exponents[sampleIndex] = -1 * weight * energy;
 					}
+					expInc = logsumexp(exponents);
 
 					double obsInc = 0;
 					for (int i = 0; i < groundRules.size(); i++) {
@@ -255,7 +258,7 @@ public class MaxPiecewisePseudoLikelihood extends VotedPerceptron {
 						}
 					}
 
-					expInc = -1.0 * Math.log(expInc / numSamples);
+					expInc = -1.0 * (expInc - Math.log(numSamples));
 					losses[ruleIndex] += (obsInc + expInc);
 				}
 
