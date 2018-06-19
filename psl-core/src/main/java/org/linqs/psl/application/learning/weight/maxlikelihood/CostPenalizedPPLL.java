@@ -46,7 +46,7 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 	/**
 	 * Prefix of property keys used by this class.
 	 */
-	public static final String CONFIG_PREFIX = "costPenalizedPPLL";
+	public static final String CONFIG_PREFIX = "costppll";
 	private static final Logger log = LoggerFactory.getLogger(CostPenalizedPPLL.class);
 
 	/**
@@ -56,9 +56,9 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 	public static final String NUM_SAMPLES_KEY = CONFIG_PREFIX + ".numsamples";
 	public static final int NUM_SAMPLES_DEFAULT = 100;
 	public static final String FALSE_POS_COST_KEY = CONFIG_PREFIX + ".fpcost";
-	public static final double FALSE_POS_COST_DEFAULT = -10.0;
+	public static final double FALSE_POS_COST_DEFAULT = -2.0;
 	public static final String FALSE_NEG_COST_KEY = CONFIG_PREFIX + ".fncost";
-	public static final double FALSE_NEG_COST_DEFAULT = 1.0;
+	public static final double FALSE_NEG_COST_DEFAULT = 2.0;
 
 	public static final String SOFT_SCORING_KEY = CONFIG_PREFIX + ".usesoft";
 	public static final boolean SOFT_SCORING_DEFAULT = true;
@@ -94,8 +94,8 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 		}
 
 		ruleRandomVariableMap = null;
-
 		averageSteps = false;
+
 	}
 
 	@Override
@@ -136,6 +136,7 @@ public class CostPenalizedPPLL extends VotedPerceptron {
 	 * Compute the expected incompatibility using the piecewisepseudolikelihood.
 	 * Use Monte Carlo integration to approximate epectations.
 	 */
+
 	@Override
 	protected void computeExpectedIncompatibility() {
 		setLabeledRandomVariables();

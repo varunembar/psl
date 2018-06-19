@@ -193,7 +193,7 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 						- l2Regularization * weight
 						- l1Regularization) / scalingFactor[i];
 
-				currentStep *= baseStepSize/(step + 1);
+				currentStep *= baseStepSize;
 
 				// Apply momentum.
 				currentStep += inertia * lastSteps[i];
@@ -201,21 +201,21 @@ public abstract class VotedPerceptron extends WeightLearningApplication {
 				// TODO(eriq): Should we keep track of the computed step, or actual step (after Max(0)).
 				lastSteps[i] = currentStep;
 
-				log.debug("Gradient: {} (without momentun: {}), Expected Incomp.: {}, Observed Incomp.: {} -- {}",
-						currentStep, currentStep - (inertia * lastSteps[i]),
-						expectedIncompatibility[i], observedIncompatibility[i],
-						mutableRules.get(i));
+				// log.debug("Gradient: {} (without momentun: {}), Expected Incomp.: {}, Observed Incomp.: {} -- {}",
+				// 		currentStep, currentStep - (inertia * lastSteps[i]),
+				// 		expectedIncompatibility[i], observedIncompatibility[i],
+				// 		mutableRules.get(i));
 
 				weight = Math.max(weight + currentStep, 0.0);
 				avgWeights[i] += weight;
 				mutableRules.get(i).setWeight(weight);
 			}
 
-			if (log.isDebugEnabled()) {
-				getLoss();
-			}
+			// if (log.isDebugEnabled()) {
+				// getLoss();
+			// }
 
-			log.debug("Iteration {} complete. Likelihood: {}.", step, currentLoss);
+			// log.debug("Iteration {} complete. Likelihood: {}.", step, currentLoss);
 			log.trace("Model {} ", mutableRules);
 		}
 
