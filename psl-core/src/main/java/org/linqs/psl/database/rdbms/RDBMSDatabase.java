@@ -178,7 +178,7 @@ public class RDBMSDatabase implements Database {
 	 * @param predicate	The predicate to lookup
 	 * @return	The handle associated with the predicate
 	 */
-	public PredicateInfo getPredicateInfo(Predicate predicate) {
+	public synchronized PredicateInfo getPredicateInfo(Predicate predicate) {
 		PredicateInfo info = predicates.get(predicate);
 		if (info == null) {
 			throw new IllegalArgumentException("Predicate not registered with database.");

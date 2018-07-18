@@ -19,6 +19,7 @@ package org.linqs.psl.database.rdbms;
 
 import org.linqs.psl.database.rdbms.driver.DatabaseDriver;
 import org.linqs.psl.model.predicate.Predicate;
+import org.linqs.psl.model.predicate.PredicateFactory;
 import org.linqs.psl.model.predicate.StandardPredicate;
 import org.linqs.psl.model.term.ConstantType;
 
@@ -513,7 +514,8 @@ public class PredicateInfo {
 				return null;
 			}
 
-			return StandardPredicate.get(name, args.toArray(new ConstantType[args.size()]));
+			PredicateFactory factory = PredicateFactory.getFactory();
+			return factory.createStandardPredicate(name, args.toArray(new ConstantType[args.size()]));
 		} catch (SQLException ex) {
 			throw new RuntimeException("Failed to create predicate (" + name + ") from table (" + tableName + ").", ex);
 		}
